@@ -1,29 +1,40 @@
-# ****** ComfyUI-AF-Find Node by ID ******
-#
-# Creator: Alex Furer - Co-Creator(s): Claude AI 
-#
-# Praise, comment, bugs, improvements: https://github.com/alFrame/ComfyUI_AF_FindNodeByID
-#
-# LICENSE: MIT License
-#
-# v0.0.01
-#   - Inital code
-#
-# Description:
-# A ComfyUI extension that allows you to search for and locate nodes by their ID in complex workflows.
-#
-# Usage:
-# Read Me on Github
-#
-# Changelog:
-# v0.0.01
-# - Initial Version
-#
-# Feature Requests / Wet Dreams
-# - 
+- Zoom to node does not workflows
+- Recent Seraches dows not populate
+// ****** ComfyUI-AF-Find Node by ID ******
+//
+// Creator: Alex Furer - Co-Creator(s): Claude AI 
+//
+// Praise, comment, bugs, improvements: https://github.com/alFrame/ComfyUI_AF_FindNodeByID
+//
+// LICENSE: MIT License
+//
+// v0.0.02
+//
+// Description:
+// A ComfyUI extension that allows you to search for and locate nodes by their ID in complex workflows.
+//
+// Usage:
+// Read Me on Github
+//
+// Changelog:
+// v0.0.01
+// - Initial Version
+//
+// v0.0.02
+//   - Fixed double initialization error
+//   - Removed right-click on canvas to trigger the dialog
+//   - Fixed zooming in to node
+//
+// Feature Requests / Wet Dreams
+// - 
 
 import { app } from "/scripts/app.js";
 import { api } from "/scripts/api.js";
+
+// Prevent double initialization
+if (window.AF_Find_Node_by_ID_Widget) {
+    console.log("AF - Find Node by ID already loaded, skipping initialization");
+} else {
 
 class AF_Find_Node_by_ID_Widget {
     constructor() {
@@ -85,7 +96,7 @@ class AF_Find_Node_by_ID_Widget {
             font-size: 14px;
             line-height: 1;
         `;
-        closeBtn.onclick = () => this.hidePanel();
+        closeBtn.onclick = () => this.AF_Find_Node_by_ID_HidePanel();
 
         titleBar.appendChild(title);
         titleBar.appendChild(closeBtn);
@@ -293,8 +304,8 @@ class AF_Find_Node_by_ID_Widget {
         });
 
         // Apply highlight
-        node.color = '#ff6b6b';
-        node.bgcolor = '#ff6b6b33';
+        node.color = '#ff9600';
+        node.bgcolor = '#ff960033';
         
         this.highlightedNode = node;
         app.graph.setDirtyCanvas(true, true);
@@ -316,22 +327,18 @@ class AF_Find_Node_by_ID_Widget {
     AF_Find_Node_by_ID_CenterOnNode(node) {
         if (!app.canvas || !node) return;
         
-        const canvas = app.canvas;
-        const canvasRect = canvas.canvas.getBoundingClientRect();
+        // Clear current selection
+        app.canvas.selectNodes();
         
-        // Calculate center position
-        const centerX = canvasRect.width / 2;
-        const centerY = canvasRect.height / 2;
+        // Select the target node
+        node.is_selected = true;
+        app.canvas.selected_nodes[node.id] = node;
         
-        // Calculate offset to center the node
-        const offsetX = centerX - (node.pos[0] * canvas.ds.scale + canvas.ds.offset[0]);
-        const offsetY = centerY - (node.pos[1] * canvas.ds.scale + canvas.ds.offset[1]);
+        // Use ComfyUI's built-in "fit view to selected nodes" functionality
+        app.canvas.fitSelectedNodes();
         
-        // Apply the offset
-        canvas.ds.offset[0] += offsetX;
-        canvas.ds.offset[1] += offsetY;
-        
-        canvas.setDirty(true, true);
+        // Mark canvas as dirty to trigger redraw
+        app.canvas.setDirty(true, true);
     }
 
     AF_Find_Node_by_ID_ToggleInspector() {
@@ -425,8 +432,8 @@ class AF_Find_Node_by_ID_Widget {
     }
 }
 
-// Initialize the search widget
-const AF_Find_Node_by_ID_Widget = new AF_Find_Node_by_ID_Widget();
+// Initialize the search widget with guard against double initialization
+window.AF_Find_Node_by_ID_Widget = new AF_Find_Node_by_ID_Widget();
 
 // Register the extension
 app.registerExtension({
@@ -439,40 +446,63 @@ app.registerExtension({
     async setup() {
         // Add keyboard event listeners
         document.addEventListener('keydown', (e) => {
-            AF_Find_Node_by_ID_Widget.AF_Find_Node_by_ID_HandleKeyboard(e);
+            window.AF_Find_Node_by_ID_Widget.AF_Find_Node_by_ID_HandleKeyboard(e);
         });
 
-        // Hook into node click events for inspector mode
-        const originalProcessMouseDown = app.canvas.processMouseDown;
-        app.canvas.processMouseDown = function(e) {
-            const result = originalProcessMouseDown.call(this, e);
+        // Hook into node selection changes for inspector mode
+        let lastSelectedNodes = [];
+        
+        // Monitor for node selection changes
+        const checkNodeSelection = () => {
+            if (!window.AF_Find_Node_by_ID_Widget.inspectorMode) return;
             
-            // Check if we clicked on a node in inspector mode
-            if (AF_Find_Node_by_ID_Widget.inspectorMode) {
-                const node = this.graph.getNodeOnPos(e.canvasX, e.canvasY, this.visible_nodes);
-                if (node) {
-                    AF_Find_Node_by_ID_Widget.AF_Find_Node_by_ID_HandleNodeClick(node);
-                }
+            const currentSelected = app.canvas.selected_nodes;
+            if (!currentSelected || Object.keys(currentSelected).length === 0) return;
+            
+            // Get the first selected node
+            const nodeId = Object.keys(currentSelected)[0];
+            const node = currentSelected[nodeId];
+            
+            if (node && !lastSelectedNodes.includes(node.id)) {
+                window.AF_Find_Node_by_ID_Widget.AF_Find_Node_by_ID_HandleNodeClick(node);
+                lastSelectedNodes = [node.id];
             }
-            
-            return result;
         };
+        
+        // Check selection periodically when inspector is active
+        setInterval(() => {
+            if (window.AF_Find_Node_by_ID_Widget.inspectorMode) {
+                checkNodeSelection();
+            } else {
+                lastSelectedNodes = [];
+            }
+        }, 100);
 
-        // Add menu item
-        const originalGetCanvasMenuOptions = app.getCanvasMenuOptions;
-        app.getCanvasMenuOptions = function() {
-            const options = originalGetCanvasMenuOptions.call(this);
+        // Also try hooking into the canvas click event
+        const canvas = app.canvas.canvas;
+        canvas.addEventListener('click', (e) => {
+            if (!window.AF_Find_Node_by_ID_Widget.inspectorMode) return;
             
-            options.push({
-                content: "🔍 AF - Find Node by ID (Ctrl+Shift+F)",
-                callback: () => {
-                    AF_Find_Node_by_ID_Widget.AF_Find_Node_by_ID_TogglePanel();
-                }
-            });
+            // Get canvas coordinates
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
             
-            return options;
-        };
+            // Convert to canvas coordinates
+            const canvasX = (x - app.canvas.ds.offset[0]) / app.canvas.ds.scale;
+            const canvasY = (y - app.canvas.ds.offset[1]) / app.canvas.ds.scale;
+            
+            // Find node at position
+            const node = app.graph.getNodeOnPos(canvasX, canvasY);
+            
+            if (node) {
+                window.AF_Find_Node_by_ID_Widget.AF_Find_Node_by_ID_HandleNodeClick(node);
+                e.stopPropagation();
+            }
+        }, true);
 
         console.log("AF - Find Node by ID extension loaded. Use Ctrl+Shift+F to open search panel.");
     }
 });
+
+} // End of guard against double initialization
