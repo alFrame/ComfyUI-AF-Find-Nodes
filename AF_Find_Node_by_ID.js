@@ -1,5 +1,3 @@
-- Zoom to node does not workflows
-- Recent Seraches dows not populate
 // ****** ComfyUI-AF-Find Node by ID ******
 //
 // Creator: Alex Furer - Co-Creator(s): Claude AI 
@@ -233,6 +231,9 @@ class AF_Find_Node_by_ID_Widget {
         document.body.appendChild(panel);
         this.searchPanel = panel;
 
+		/*  populate the buttons now that the container exists  */
+		this.AF_Find_Node_by_ID_UpdateHistory();
+		
         // Update results initially
         this.AF_Find_Node_by_ID_UpdateResults('Ready to search. Enter a node ID or use Inspector mode.');
     }
@@ -324,26 +325,21 @@ class AF_Find_Node_by_ID_Widget {
         }
     }
 
-    AF_Find_Node_by_ID_CenterOnNode(node) {
-        if (!app.canvas || !node) return;
-        
-        // Clear current selection
-        app.canvas.selectNodes();
-        
-        // Select the target node
-        node.is_selected = true;
-        app.canvas.selected_nodes[node.id] = node;
-        
-        // Use ComfyUI's built-in "fit view to selected nodes" functionality
-        app.canvas.fitSelectedNodes();
-        
-        // Mark canvas as dirty to trigger redraw
-        app.canvas.setDirty(true, true);
-    }
+	AF_Find_Node_by_ID_CenterOnNode(node) {
+		if (!app.canvas || !node) return;
 
-    AF_Find_Node_by_ID_ToggleInspector() {
-        this.AF_Find_Node_by_ID_SetInspectorMode(!this.inspectorMode);
-    }
+		{   // <── open a block so the const-s are legal
+			const canvasElem = app.canvas.canvas;
+			const targetX = canvasElem.width  >> 1;
+			const targetY = canvasElem.height >> 1;
+			const [nx, ny] = node.getCenter();
+			const ds = app.canvas.ds;
+			ds.offset[0] = targetX - nx * ds.scale;
+			ds.offset[1] = targetY - ny * ds.scale;
+		}
+
+		app.graph.setDirtyCanvas(true, true);
+	}
 
     AF_Find_Node_by_ID_SetInspectorMode(enabled) {
         this.inspectorMode = enabled;
