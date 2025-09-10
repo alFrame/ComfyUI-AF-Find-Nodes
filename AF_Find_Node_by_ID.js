@@ -1,12 +1,12 @@
 // ****** ComfyUI-AF-Find Node by ID ******
 //
-// Creator: Alex Furer - Co-Creator(s): Claude AI 
+// Creator: Alex Furer - Co-Creator(s): Claude AI & QWEN3 Coder
 //
 // Praise, comment, bugs, improvements: https://github.com/alFrame/ComfyUI_AF_FindNodeByID
 //
 // LICENSE: MIT License
 //
-// v0.0.02
+// v0.0.03
 //
 // Description:
 // A ComfyUI extension that allows you to search for and locate nodes by their ID in complex workflows.
@@ -22,6 +22,12 @@
 //   - Fixed double initialization error
 //   - Removed right-click on canvas to trigger the dialog
 //   - Fixed zooming in to node
+//
+// v0.0.03
+//   - Clear button now also clears the search field
+//   - Dialog content cleared when closed or opened
+//   - Error messages in red
+//   - Fixed dialog width to 340px
 //
 // Feature Requests / Wet Dreams
 // - 
@@ -62,7 +68,7 @@ class AF_Find_Node_by_ID_Widget {
             font-size: 12px;
             color: #fff;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            min-width: 300px;
+            width: 340px;  /* Fixed width */
             display: none;
         `;
 
@@ -203,7 +209,7 @@ class AF_Find_Node_by_ID_Widget {
 
         // Event listeners
         searchBtn.onclick = () => this.AF_Find_Node_by_ID_Search();
-        clearBtn.onclick = () => this.AF_Find_Node_by_ID_ClearHighlight();
+        clearBtn.onclick = () => this.AF_Find_Node_by_ID_ClearAll();
         inspectorBtn.onclick = () => this.AF_Find_Node_by_ID_ToggleInspector();
         
         searchInput.addEventListener('keydown', (e) => {
@@ -231,9 +237,6 @@ class AF_Find_Node_by_ID_Widget {
         document.body.appendChild(panel);
         this.searchPanel = panel;
 
-		/*  populate the buttons now that the container exists  */
-		this.AF_Find_Node_by_ID_UpdateHistory();
-		
         // Update results initially
         this.AF_Find_Node_by_ID_UpdateResults('Ready to search. Enter a node ID or use Inspector mode.');
     }
@@ -244,6 +247,8 @@ class AF_Find_Node_by_ID_Widget {
         }
         this.searchPanel.style.display = 'block';
         this.isVisible = true;
+        // Clear the search field when dialog is shown
+        document.getElementById('af-find-node-by-id-input').value = '';
         document.getElementById('af-find-node-by-id-input').focus();
     }
 
@@ -252,7 +257,7 @@ class AF_Find_Node_by_ID_Widget {
             this.searchPanel.style.display = 'none';
         }
         this.isVisible = false;
-        this.AF_Find_Node_by_ID_ClearHighlight();
+        this.AF_Find_Node_by_ID_ClearAll();
         this.AF_Find_Node_by_ID_SetInspectorMode(false);
     }
 
@@ -269,13 +274,13 @@ class AF_Find_Node_by_ID_Widget {
         const searchId = input.value.trim();
         
         if (!searchId) {
-            this.AF_Find_Node_by_ID_UpdateResults('Please enter a node ID');
+            this.AF_Find_Node_by_ID_UpdateResults('Please enter a node ID', true);
             return;
         }
 
         const nodeId = parseInt(searchId);
         if (isNaN(nodeId)) {
-            this.AF_Find_Node_by_ID_UpdateResults('Invalid node ID. Please enter a number.');
+            this.AF_Find_Node_by_ID_UpdateResults('Invalid node ID. Please enter a number.', true);
             return;
         }
 
@@ -286,7 +291,7 @@ class AF_Find_Node_by_ID_Widget {
             this.AF_Find_Node_by_ID_AddToHistory(nodeId);
             this.AF_Find_Node_by_ID_UpdateResults(`Found node ${nodeId}: ${node.type || 'Unknown Type'}`);
         } else {
-            this.AF_Find_Node_by_ID_UpdateResults(`Node ${nodeId} not found in current workflow`);
+            this.AF_Find_Node_by_ID_UpdateResults(`Node ${nodeId} not found in current workflow`, true);
         }
     }
 
@@ -325,21 +330,61 @@ class AF_Find_Node_by_ID_Widget {
         }
     }
 
+    AF_Find_Node_by_ID_ClearAll() {
+        // Clear the search field
+        const input = document.getElementById('af-find-node-by-id-input');
+        if (input) {
+            input.value = '';
+        }
+        // Clear highlight
+        this.AF_Find_Node_by_ID_ClearHighlight();
+        // Update results
+        this.AF_Find_Node_by_ID_UpdateResults('Search field cleared.');
+    }
+
 	AF_Find_Node_by_ID_CenterOnNode(node) {
 		if (!app.canvas || !node) return;
-
-		{   // <── open a block so the const-s are legal
-			const canvasElem = app.canvas.canvas;
-			const targetX = canvasElem.width  >> 1;
-			const targetY = canvasElem.height >> 1;
-			const [nx, ny] = node.getCenter();
-			const ds = app.canvas.ds;
-			ds.offset[0] = targetX - nx * ds.scale;
-			ds.offset[1] = targetY - ny * ds.scale;
+		
+		try {
+			// Clear current selection
+			app.canvas.deselectAllNodes();
+			
+			// Select the target node
+			node.is_selected = true;
+			app.canvas.selectNode(node);
+			
+			// Reset zoom to a reasonable level for viewing
+			const targetScale = 1.0; // or 1.2 for a bit closer
+			app.canvas.ds.scale = targetScale;
+			
+			// Center on the node
+			const canvas = app.canvas;
+			const nodeWidth = node.size[0];
+			const nodeHeight = node.size[1];
+			const nodeCenterX = node.pos[0] + (nodeWidth / 2);
+			const nodeCenterY = node.pos[1] + (nodeHeight / 2);
+			
+			canvas.ds.offset[0] = (canvas.canvas.width / 2) - (nodeCenterX * canvas.ds.scale);
+			canvas.ds.offset[1] = (canvas.canvas.height / 2) - (nodeCenterY * canvas.ds.scale);
+			
+			app.graph.setDirtyCanvas(true, true);
+		} catch (error) {
+			console.warn("AF_Find_Node_by_ID: Could not center on node, using fallback", error);
+			// Simple fallback
+			const canvas = app.canvas;
+			canvas.ds.offset[0] = -node.pos[0] * canvas.ds.scale;
+			canvas.ds.offset[1] = -node.pos[1] * canvas.ds.scale;
+			canvas.setDirty(true, true);
 		}
-
-		app.graph.setDirtyCanvas(true, true);
 	}
+
+    AF_Find_Node_by_ID_ToggleInspector() {
+        this.AF_Find_Node_by_ID_SetInspectorMode(!this.inspectorMode);
+        // Fix width when toggling inspector
+        if (this.searchPanel) {
+            this.searchPanel.style.width = '340px';
+        }
+    }
 
     AF_Find_Node_by_ID_SetInspectorMode(enabled) {
         this.inspectorMode = enabled;
@@ -406,10 +451,11 @@ class AF_Find_Node_by_ID_Widget {
         });
     }
 
-    AF_Find_Node_by_ID_UpdateResults(message) {
+    AF_Find_Node_by_ID_UpdateResults(message, isError = false) {
         const results = document.getElementById('af-find-node-by-id-results');
         if (results) {
             results.textContent = message;
+            results.style.color = isError ? '#ff6b6b' : '#fff'; // Red for errors, white otherwise
         }
     }
 
