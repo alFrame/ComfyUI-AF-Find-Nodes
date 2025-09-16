@@ -1,4 +1,4 @@
-# ComfyUI-AF-Find-Node-by-ID
+# ComfyUI-AF-FindNodeByID
 
 A ComfyUI extension that allows you to find and locate nodes by their ID in complex workflows.
 
@@ -109,7 +109,7 @@ MIT License - Feel free to use, modify, and distribute!
 
 ## Contributing
 
-Issues and pull requests welcome at: https://github.com/alFrame/ComfyUI-AF-Find-Node-by-ID
+Issues and pull requests welcome at: [https://github.com/alFrame/ComfyUI-AF-Find-Node-by-ID](https://github.com/alFrame/ComfyUI-AF-FindNodeByID)
 
 ---
 
