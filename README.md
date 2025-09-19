@@ -117,5 +117,4 @@ Issues and pull requests welcome at: [https://github.com/alFrame/ComfyUI-AF-Find
 
 ---
 
-**Creator:** Alex Furer with Claude AI  
-**Version:** 1.0.0
+**Creator:** Alex Furer with Claude AI
