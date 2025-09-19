@@ -4,7 +4,9 @@ A ComfyUI extension that allows you to find and locate nodes by their ID in comp
 
 ComfyUI is reporting node IDs when it encounters an error, but there is no built in tool to find those node IDs quickly.
 
-That's now solved with thisnode. Here's a quick video showing the functionallity.
+That's now solved with this custom node/tool.
+
+Here's a quick video showing the functionallity.
 
 [VIDEO]
 
