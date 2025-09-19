@@ -2,6 +2,12 @@
 
 A ComfyUI extension that allows you to find and locate nodes by their ID in complex workflows.
 
+ComfyUI is reporting node IDs when it encounters an error, but there is no built in tool to find those node IDs quickly.
+
+That's now solved with thisnode. Here's a quick video showing the functionallity.
+
+[VIDEO]
+
 ## Features
 
 ### 🔍 **Find by Node ID**
@@ -49,10 +55,6 @@ A ComfyUI extension that allows you to find and locate nodes by their ID in comp
 ### Method 1: Keyboard Shortcut
 - Press `Ctrl+Shift+F` anywhere in ComfyUI to open the search panel
 
-### Method 2: Context Menu
-- Right-click on the canvas
-- Select "🔍 AF - Find Node by ID (Ctrl+Shift+F)" from the menu
-
 ### Finding Nodes
 1. Enter a node ID in the search field (e.g., `42`)
 2. Click "Find" or press Enter
@@ -90,9 +92,11 @@ Simply:
 ## Compatibility
 
 - Works with all ComfyUI workflows
-- Compatible with custom nodes and subgraphs
+- Compatible with custom nodes
 - No dependencies on other extensions
 - Pure JavaScript implementation
+
+## Not compatible with subgraphs !!
 
 ## File Structure
 
