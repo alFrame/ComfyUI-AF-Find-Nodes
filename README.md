@@ -2,6 +2,11 @@
 
 A ComfyUI extension that allows you to find and locate nodes by their ID in complex workflows.
 
+Ever had this in the console ???
+<img width="454" height="188" alt="image" src="https://github.com/user-attachments/assets/6b4d00de-59d3-4a96-908a-65d999a921d7" />
+
+Here's the solution !!
+
 ComfyUI is reporting node IDs when it encounters an error, but there is no built in tool to find those node IDs quickly.
 
 That's now solved with this custom node/tool.
