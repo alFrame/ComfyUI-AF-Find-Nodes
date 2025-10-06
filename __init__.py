@@ -21,6 +21,16 @@ NODE_DISPLAY_NAME_MAPPINGS = {}
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
 
-print("🔍 AF - Find Node by ID extension loaded!")
-print("   Use Ctrl+Shift+F to open the search panel")
-print("   Right-click canvas for search menu option")
+print("*  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *")
+print(r"""
+   ___   ____        _____           ___     __  ______  _  __       __      
+  / _ | / __/ ____  / ___/__  __ _  / _/_ __/ / / /  _/ / |/ /__ ___/ /__ ___
+ / __ |/ _/  /___/ / /__/ _ \/  ' \/ _/ // / /_/ // /  /    / _ Y _  / -_|_-<
+/_/ |_/_/          \___/\___/_/_/_/_/ \_, /\____/___/ /_/|_/\___|_,_/\__/___/
+                                     /___/
+                                     
+              🔍 AF - Find Node by ID extension loaded!
+                 Use Ctrl+Shift+F to open the search panel
+                 
+""")
+print("*  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *")
