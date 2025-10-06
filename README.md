@@ -12,7 +12,7 @@ ComfyUI is reporting node IDs when it encounters an error, but there is no built
 
 That's now solved with this custom node/tool.
 
-Here's a quick video showing the functionallity.
+Here's a quick video showing the functionality.
 
 [VIDEO]
 
@@ -28,7 +28,7 @@ Here's a quick video showing the functionallity.
 - Automatically fills the search field with clicked node ID
 - Great for exploring and mapping your workflow
 
-### 📝 **Search History**
+### 📜 **Search History**
 - Keeps track of your recent searches
 - Click any history item to quickly re-search
 - Stores up to 10 recent searches
@@ -60,7 +60,7 @@ Here's a quick video showing the functionallity.
 
 ## Usage
 
-### Method 1: Keyboard Shortcut
+### Opening the Search Panel
 - Press `Ctrl+Shift+F` anywhere in ComfyUI to open the search panel
 
 ### Finding Nodes
