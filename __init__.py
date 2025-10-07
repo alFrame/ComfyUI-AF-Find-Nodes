@@ -31,7 +31,7 @@ print(r"""
 /_/ |_/_/          \___/\___/_/_/_/_/ \_, /\____/___/ /_/|_/\___|_,_/\__/___/
                                      /___/
                                      
-              🔍 AF - Find Node by ID extension loaded!
+              🔍 AF - Find Node by ID Extension Loaded !
                  Use Ctrl+Shift+F to open the search panel
                  
 """)
