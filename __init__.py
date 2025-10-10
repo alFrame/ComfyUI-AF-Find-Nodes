@@ -32,7 +32,7 @@ print(r"""
                                      /___/
                                      
               🔍 AF - Find Node by ID Extension Loaded !
-                 Use Ctrl+Shift+F to open the search panel
+               Use Ctrl+Shift+F to open the search panel
                  
 """)
 print("*  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *")
