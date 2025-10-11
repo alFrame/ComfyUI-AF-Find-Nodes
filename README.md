@@ -1,5 +1,4 @@
-# ComfyUI-AF-FindNodeByID
-
+# ComfyUI-AF-Find-Nodes
 A ComfyUI extension that allows you to find and locate nodes by their ID, title, pack, or type in complex workflows.
 
 ComfyUI reports node IDs when it encounters errors, but there's no built-in tool to find those node IDs quickly. That's now solved with this custom node/tool.
@@ -69,14 +68,14 @@ The extension now features a tabbed interface with four search modes:
 1. Download or clone this repository to your `ComfyUI/custom_nodes/` directory:
    ```bash
    cd ComfyUI/custom_nodes/
-   git clone https://github.com/alFrame/ComfyUI-AF-Find-Node-by-ID.git
+   git clone https://github.com/alFrame/ComfyUI-AF-Find-Nodes.git
    ```
 
 2. Restart ComfyUI
 
 3. The extension will automatically load - look for the console message:
    ```
-   🔍 AF - Find Node by ID extension loaded!
+   🔍 AF - Find Nodes extension loaded!
    ```
 
 ## Usage
@@ -129,7 +128,7 @@ The extension now features a tabbed interface with four search modes:
 - **Workflow organization** - finding nodes by your custom titles
 - **Pack exploration** - locating all nodes from a specific extension
 - **Type analysis** - finding all instances of a node type
-- **Workflow documentation** - mapping node IDs for reference
+- **Workflow documentation** - mapping and exploring node relationships
 
 ## Error Message Integration
 
@@ -139,7 +138,7 @@ Error occurred when executing node 147
 ```
 
 Simply:
-1. Open AF - Find Node by ID (`Ctrl+Shift+F`)
+1. Open AF - Find Nodes (`Ctrl+Shift+F`)
 2. Type `147` and press Enter
 3. Instantly locate the problematic node!
 
@@ -168,8 +167,8 @@ This extension does not currently support searching within subgraphs or nested w
 ## File Structure
 
 ```
-ComfyUI-AF-Find-Node-by-ID/
-├── AF_Find_Node_by_ID.js      # Main extension JavaScript
+ComfyUI-AF-Find-Nodes/
+├── AF_Find_Nodes.js      # Main extension JavaScript
 ├── __init__.py                # Python initialization
 └── README.md                  # This file
 ```
@@ -203,7 +202,7 @@ ComfyUI-AF-Find-Node-by-ID/
 
 ## Contributing
 
-Issues and pull requests welcome at: https://github.com/alFrame/ComfyUI-AF-Find-Node-by-ID
+Issues and pull requests welcome at: https://github.com/alFrame/ComfyUI-AF-Find-Nodes
 
 Please report:
 - Bugs or unexpected behavior
@@ -222,4 +221,4 @@ MIT License - Feel free to use, modify, and distribute!
 
 ---
 
-*Praise, comments, bugs, improvements:* https://github.com/alFrame/ComfyUI_AF_FindNodeByID
+*Praise, comments, bugs, improvements:* https://github.com/alFrame/ComfyUI-AF-Find-Nodes

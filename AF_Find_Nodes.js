@@ -1,20 +1,21 @@
-// ****** ComfyUI-AF-Find Node by ID ******
+// ****** ComfyUI-AF-Find Nodes ******
 //
 // Creator: Alex Furer - Co-Creator(s): Claude AI & QWEN3 Coder & DeepSeek
 //
-// Praise, comment, bugs, improvements: https://github.com/alFrame/ComfyUI_AF_FindNodeByID
+// Praise, comment, bugs, improvements: https://github.com/alFrame/ComfyUI-AF-Find-Nodes
 //
 // LICENSE: MIT License
 //
-// v0.0.04
+// v0.0.05
 //
 // Description:
-// A ComfyUI extension that allows you to search for and locate nodes by their ID in complex workflows.
+// A ComfyUI utility extension for finding nodes by ID, title, pack, or type in workflows.
 //
 // Usage:
 // Read Me on Github
 //
 // Changelog:
+// "v0.0.05 - Renamed the project from "AF - Find Node By ID" to "AF - Find Nodes"",
 // "v0.0.04 - Added tabs to search by ID, by Title, by Pack, by Type. Search 'By Pack' and 'By Type' are experimental features. Due to inconsistencies in how nodes are coded and distributed across different packs, these searches may produce unexpected results or false positives. Use with caution !!",
 // "v0.0.03 - Clear button now also clears the search field. Dialog content cleared when closed or opened. Error messages in red. Fixed dialog width to 340px",
 // "v0.0.02 - Fixed double initialization error. Removed right-click on canvas to trigger the dialog. Fixed zooming in to node",
@@ -27,11 +28,11 @@ import { app } from "/scripts/app.js";
 import { api } from "/scripts/api.js";
 
 // Prevent double initialization
-if (window.AF_Find_Node_by_ID_Widget) {
-    console.log("AF - Find Node by ID already loaded, skipping initialization");
+if (window.AF_Find_Nodes_Widget) {
+    console.log("AF - Find Nodes already loaded, skipping initialization");
 } else {
 
-class AF_Find_Node_by_ID_Widget {
+class AF_Find_Nodes_Widget {
 	constructor() {
 		this.searchPanel = null;
 		this.isVisible = false;
@@ -57,7 +58,7 @@ class AF_Find_Node_by_ID_Widget {
     createSearchPanel() {
         // Create main container
         const panel = document.createElement('div');
-        panel.id = 'af-find-node-by-id-panel';
+        panel.id = 'af-find-nodes-panel';
         panel.style.cssText = `
             position: fixed;
             top: 80px;
@@ -87,7 +88,7 @@ class AF_Find_Node_by_ID_Widget {
         `;
 
         const title = document.createElement('div');
-        title.textContent = 'AF - Find Node by ID';
+        title.textContent = 'AF - Find Nodes';
         title.style.fontWeight = 'bold';
 
         const closeBtn = document.createElement('button');
@@ -103,7 +104,7 @@ class AF_Find_Node_by_ID_Widget {
             font-size: 14px;
             line-height: 1;
         `;
-        closeBtn.onclick = () => this.AF_Find_Node_by_ID_HidePanel();
+        closeBtn.onclick = () => this.AF_Find_Nodes_HidePanel();
 
         titleBar.appendChild(title);
         titleBar.appendChild(closeBtn);
@@ -156,7 +157,7 @@ class AF_Find_Node_by_ID_Widget {
 			
 			tabBtn.onclick = () => {
 				if ((tab.id === 'pack' || tab.id === 'type') && !this.experimentalEnabled) {
-					this.AF_Find_Node_by_ID_UpdateResults('Experimental features are disabled. Enable them in settings below.', true);
+					this.AF_Find_Nodes_UpdateResults('Experimental features are disabled. Enable them in settings below.', true);
 					return;
 				}
 				this.switchTab(tab.id);
@@ -203,7 +204,7 @@ class AF_Find_Node_by_ID_Widget {
 				this.switchTab('id'); // Switch to safe tab if experimental was active
 			}
 			
-			this.AF_Find_Node_by_ID_UpdateResults(
+			this.AF_Find_Nodes_UpdateResults(
 				this.experimentalEnabled ? 
 				'Experimental features enabled. Use with caution!' : 
 				'Experimental features disabled.'
@@ -218,7 +219,7 @@ class AF_Find_Node_by_ID_Widget {
 		const searchInput = document.createElement('input');
 		searchInput.type = 'text';
 		searchInput.placeholder = this.tabs[0].placeholder;
-		searchInput.id = 'af-find-node-by-id-input';
+		searchInput.id = 'af-find-nodes-input';
 		searchInput.style.cssText = `
 			width: 100%;
 			padding: 6px;
@@ -238,7 +239,7 @@ class AF_Find_Node_by_ID_Widget {
         searchSection.style.marginBottom = '10px';
 
         searchInput.placeholder = this.tabs[0].placeholder;
-        searchInput.id = 'af-find-node-by-id-input';
+        searchInput.id = 'af-find-nodes-input';
 		;
 
         const buttonRow = document.createElement('div');
@@ -276,7 +277,7 @@ class AF_Find_Node_by_ID_Widget {
 
         const inspectorBtn = document.createElement('button');
         inspectorBtn.textContent = 'Inspector';
-        inspectorBtn.id = 'af-find-node-by-id-inspector-toggle';
+        inspectorBtn.id = 'af-find-nodes-inspector-toggle';
         inspectorBtn.style.cssText = `
             flex: 1;
             padding: 6px;
@@ -291,7 +292,7 @@ class AF_Find_Node_by_ID_Widget {
 
         // Results section
 		const resultsSection = document.createElement('div');
-		resultsSection.id = 'af-find-node-by-id-results';
+		resultsSection.id = 'af-find-nodes-results';
 		resultsSection.style.cssText = `
 			max-height: 200px;
 			overflow-y: auto;
@@ -304,7 +305,7 @@ class AF_Find_Node_by_ID_Widget {
 		`;
 		
 		const statusSection = document.createElement('div');
-		statusSection.id = 'af-find-node-by-id-status';
+		statusSection.id = 'af-find-nodes-status';
 		statusSection.style.cssText = `
 			font-size: 11px;
 			color: #aaa;
@@ -328,7 +329,7 @@ class AF_Find_Node_by_ID_Widget {
         `;
 
         const historyList = document.createElement('div');
-        historyList.id = 'af-find-node-by-id-history';
+        historyList.id = 'af-find-nodes-history';
         historyList.style.cssText = `
             display: flex;
             flex-wrap: wrap;
@@ -336,20 +337,20 @@ class AF_Find_Node_by_ID_Widget {
         `;
 
         // Event listeners
-        searchBtn.onclick = () => this.AF_Find_Node_by_ID_Search();
-        clearBtn.onclick = () => this.AF_Find_Node_by_ID_ClearAll();
+        searchBtn.onclick = () => this.AF_Find_Nodes_Search();
+        clearBtn.onclick = () => this.AF_Find_Nodes_ClearAll();
 
 		inspectorBtn.onclick = () => {
 			if (this.currentTab === 'id') {
-				this.AF_Find_Node_by_ID_ToggleInspector();
+				this.AF_Find_Nodes_ToggleInspector();
 			} else {
-				this.AF_Find_Node_by_ID_UpdateResults('Inspector mode is only available in "By ID" tab.', true);
+				this.AF_Find_Nodes_UpdateResults('Inspector mode is only available in "By ID" tab.', true);
 			}
 		};
         
         searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                this.AF_Find_Node_by_ID_Search();
+                this.AF_Find_Nodes_Search();
             }
         });
 		
@@ -360,7 +361,7 @@ class AF_Find_Node_by_ID_Widget {
 				clearTimeout(this.searchTimeout);
 				this.searchTimeout = setTimeout(() => {
 					if (e.target.value.trim().length >= 2) { // Only search if 2+ characters
-						this.AF_Find_Node_by_ID_Search();
+						this.AF_Find_Nodes_Search();
 					}
 				}, 300); // Wait 300ms after typing stops
 			}
@@ -389,12 +390,12 @@ class AF_Find_Node_by_ID_Widget {
         this.searchPanel = panel;
 
         // Update results initially
-        this.AF_Find_Node_by_ID_UpdateResults('Ready to search. Enter a node ID or use Inspector mode.');
+        this.AF_Find_Nodes_UpdateResults('Ready to search. Enter a node ID or use Inspector mode.');
     }
 
 	switchTab(tabId) {
 		if ((tabId === 'pack' || tabId === 'type') && !this.experimentalEnabled) {
-			this.AF_Find_Node_by_ID_UpdateResults('Experimental features are disabled. Enable them below.', true);
+			this.AF_Find_Nodes_UpdateResults('Experimental features are disabled. Enable them below.', true);
 			return;
 		}
 		this.currentTab = tabId;
@@ -414,16 +415,16 @@ class AF_Find_Node_by_ID_Widget {
 		
 		// Clear previous results, input, and highlight
 		this.tabInputs.main.value = '';
-		this.AF_Find_Node_by_ID_ClearHighlight();
+		this.AF_Find_Nodes_ClearHighlight();
 		this.showResultsList([], '');  // Clear the results list
-		this.AF_Find_Node_by_ID_UpdateResults(`Switched to ${tabConfig.name} search. Ready to search.`);
+		this.AF_Find_Nodes_UpdateResults(`Switched to ${tabConfig.name} search. Ready to search.`);
 		
 		// Update history for current tab
-		this.AF_Find_Node_by_ID_UpdateHistory();
+		this.AF_Find_Nodes_UpdateHistory();
 	}
 
 	updateInspectorButtonVisibility() {
-		const inspectorBtn = document.getElementById('af-find-node-by-id-inspector-toggle');
+		const inspectorBtn = document.getElementById('af-find-nodes-inspector-toggle');
 		if (inspectorBtn) {
 			if (this.currentTab === 'id') {
 				inspectorBtn.style.display = 'block';
@@ -431,14 +432,14 @@ class AF_Find_Node_by_ID_Widget {
 				inspectorBtn.style.display = 'none';
 				// Also disable inspector mode if switching away from ID tab
 				if (this.inspectorMode) {
-					this.AF_Find_Node_by_ID_SetInspectorMode(false);
+					this.AF_Find_Nodes_SetInspectorMode(false);
 				}
 			}
 		}
 	}
 
 	updateTabAppearance() {
-		document.querySelectorAll('#af-find-node-by-id-panel [data-tab]').forEach(btn => {
+		document.querySelectorAll('#af-find-nodes-panel [data-tab]').forEach(btn => {
 			const tabId = btn.dataset.tab;
 			const isExperimental = tabId === 'pack' || tabId === 'type';
 			const isActive = tabId === this.currentTab;
@@ -449,7 +450,7 @@ class AF_Find_Node_by_ID_Widget {
 		});
 	}
 
-	AF_Find_Node_by_ID_ShowPanel() {
+	AF_Find_Nodes_ShowPanel() {
 		if (!this.searchPanel) {
 			this.createSearchPanel();
 		}
@@ -460,35 +461,35 @@ class AF_Find_Node_by_ID_Widget {
 		this.switchTab(this.currentTab);
 		
 		// Clear the search field when dialog is shown but keep results
-		document.getElementById('af-find-node-by-id-input').value = '';
-		document.getElementById('af-find-node-by-id-input').focus();
+		document.getElementById('af-find-nodes-input').value = '';
+		document.getElementById('af-find-nodes-input').focus();
 		
 		// Update tab appearance to reflect experimental setting
 		this.updateTabAppearance();  // Add this line
 	}
 
-    AF_Find_Node_by_ID_HidePanel() {
+    AF_Find_Nodes_HidePanel() {
         if (this.searchPanel) {
             this.searchPanel.style.display = 'none';
         }
         this.isVisible = false;
-        this.AF_Find_Node_by_ID_ClearAll();
-        this.AF_Find_Node_by_ID_SetInspectorMode(false);
+        this.AF_Find_Nodes_ClearAll();
+        this.AF_Find_Nodes_SetInspectorMode(false);
     }
 
-    AF_Find_Node_by_ID_TogglePanel() {
+    AF_Find_Nodes_TogglePanel() {
         if (this.isVisible) {
-            this.AF_Find_Node_by_ID_HidePanel();
+            this.AF_Find_Nodes_HidePanel();
         } else {
-            this.AF_Find_Node_by_ID_ShowPanel();
+            this.AF_Find_Nodes_ShowPanel();
         }
     }
 
-	AF_Find_Node_by_ID_Search() {
+	AF_Find_Nodes_Search() {
 		const searchTerm = this.tabInputs.main.value.trim();
 		
 		if (!searchTerm) {
-			this.AF_Find_Node_by_ID_UpdateResults('Please enter a search term', true);
+			this.AF_Find_Nodes_UpdateResults('Please enter a search term', true);
 			return;
 		}
 
@@ -515,11 +516,11 @@ class AF_Find_Node_by_ID_Widget {
 	searchById(searchTerm) {
 		const nodeId = parseInt(searchTerm);
 		if (isNaN(nodeId)) {
-			this.AF_Find_Node_by_ID_UpdateResults('Invalid node ID. Please enter a number.', true);
+			this.AF_Find_Nodes_UpdateResults('Invalid node ID. Please enter a number.', true);
 			return [];
 		}
 		
-		const node = this.AF_Find_Node_by_ID_FindNodeById(nodeId);
+		const node = this.AF_Find_Nodes_FindNodeById(nodeId);
 		return node ? [node] : [];
 	}
 
@@ -630,7 +631,7 @@ class AF_Find_Node_by_ID_Widget {
 		}
 		
 		if (!app.graph || !app.graph.nodes) {
-			console.warn("AF_Find_Node: No graph or nodes available");
+			console.warn("AF_Find_Nodes: No graph or nodes available");
 			return [];
 		}
 		
@@ -680,18 +681,18 @@ class AF_Find_Node_by_ID_Widget {
 	handleSearchResults(nodes, searchTerm) {
 		if (nodes.length === 0) {
 			this.showResultsList([], searchTerm);
-			this.AF_Find_Node_by_ID_UpdateResults(`No nodes found for "${searchTerm}"`, true);
+			this.AF_Find_Nodes_UpdateResults(`No nodes found for "${searchTerm}"`, true);
 			return;
 		}
 		
 		this.showResultsList(nodes, searchTerm);
-		this.AF_Find_Node_by_ID_AddToHistory(searchTerm);
+		this.AF_Find_Nodes_AddToHistory(searchTerm);
 		
 		if (nodes.length === 1) {
 			this.selectFromList(nodes[0].id);
-			this.AF_Find_Node_by_ID_UpdateResults(`Found: ${this.getNodeDescription(nodes[0])}`);
+			this.AF_Find_Nodes_UpdateResults(`Found: ${this.getNodeDescription(nodes[0])}`);
 		} else {
-			this.AF_Find_Node_by_ID_UpdateResults(`Found ${nodes.length} nodes. Click any to select.`);
+			this.AF_Find_Nodes_UpdateResults(`Found ${nodes.length} nodes. Click any to select.`);
 		}
 	}
 
@@ -710,7 +711,7 @@ class AF_Find_Node_by_ID_Widget {
 				resultsHTML += `
 					<div class="result-item" 
 						 style="padding: 6px; margin: 2px 0; background: ${isHighlighted ? '#ff960033' : '#2a2a2a'}; border: 1px solid ${isHighlighted ? '#ff9600' : '#444'}; border-radius: 3px; cursor: pointer;"
-						 onclick="window.AF_Find_Node_by_ID_Widget.selectFromList(${node.id})">
+						 onclick="window.AF_Find_Nodes_Widget.selectFromList(${node.id})">
 						<div style="font-weight: bold;">[${node.id}] ${node.type || 'Unknown'}</div>
 						<div style="font-size: 10px; color: #ccc;">${node.title || 'Untitled'}</div>
 						${nodeSource ? `<div style="font-size: 9px; color: #888;">Source: ${nodeSource}</div>` : ''}
@@ -719,16 +720,16 @@ class AF_Find_Node_by_ID_Widget {
 			});
 		}
 		
-		const results = document.getElementById('af-find-node-by-id-results');
+		const results = document.getElementById('af-find-nodes-results');
 		results.innerHTML = resultsHTML;
 	}
 	
 	selectFromList(nodeId) {
-		const node = this.AF_Find_Node_by_ID_FindNodeById(nodeId);
+		const node = this.AF_Find_Nodes_FindNodeById(nodeId);
 		if (node) {
-			this.AF_Find_Node_by_ID_HighlightNode(node);
-			this.AF_Find_Node_by_ID_CenterOnNode(node);
-			this.AF_Find_Node_by_ID_UpdateResults(`Selected: ${this.getNodeDescription(node)}`);
+			this.AF_Find_Nodes_HighlightNode(node);
+			this.AF_Find_Nodes_CenterOnNode(node);
+			this.AF_Find_Nodes_UpdateResults(`Selected: ${this.getNodeDescription(node)}`);
 			
 			// Keep the list open, just update the selection highlight
 			const currentSearch = this.tabInputs.main.value.trim();
@@ -756,13 +757,13 @@ class AF_Find_Node_by_ID_Widget {
 		return `[${node.id}] ${node.type || 'Unknown Type'}: ${node.title || 'Untitled'}`;
 	}
 
-    AF_Find_Node_by_ID_FindNodeById(nodeId) {
+    AF_Find_Nodes_FindNodeById(nodeId) {
         if (!app.graph || !app.graph.nodes) return null;
         return app.graph.nodes.find(node => node.id === nodeId);
     }
 
-    AF_Find_Node_by_ID_HighlightNode(node) {
-        this.AF_Find_Node_by_ID_ClearHighlight();
+    AF_Find_Nodes_HighlightNode(node) {
+        this.AF_Find_Nodes_ClearHighlight();
         
         // Store original color
         this.originalNodeColors.set(node.id, {
@@ -778,7 +779,7 @@ class AF_Find_Node_by_ID_Widget {
         app.graph.setDirtyCanvas(true, true);
     }
 
-    AF_Find_Node_by_ID_ClearHighlight() {
+    AF_Find_Nodes_ClearHighlight() {
         if (this.highlightedNode) {
             const original = this.originalNodeColors.get(this.highlightedNode.id);
             if (original) {
@@ -791,20 +792,20 @@ class AF_Find_Node_by_ID_Widget {
         }
     }
 
-	AF_Find_Node_by_ID_ClearAll() {
+	AF_Find_Nodes_ClearAll() {
 		// Clear the search field
-		const input = document.getElementById('af-find-node-by-id-input');
+		const input = document.getElementById('af-find-nodes-input');
 		if (input) {
 			input.value = '';
 		}
 		// Clear highlight
-		this.AF_Find_Node_by_ID_ClearHighlight();
+		this.AF_Find_Nodes_ClearHighlight();
 		// Clear results display but keep the container visible
 		this.showResultsList([], '');
-		this.AF_Find_Node_by_ID_UpdateResults('Search field cleared.');
+		this.AF_Find_Nodes_UpdateResults('Search field cleared.');
 	}
 
-	AF_Find_Node_by_ID_CenterOnNode(node) {
+	AF_Find_Nodes_CenterOnNode(node) {
 		if (!app.canvas || !node) return;
 		
 		try {
@@ -831,7 +832,7 @@ class AF_Find_Node_by_ID_Widget {
 			
 			app.graph.setDirtyCanvas(true, true);
 		} catch (error) {
-			console.warn("AF_Find_Node_by_ID: Could not center on node, using fallback", error);
+			console.warn("AF_Find_Nodes: Could not center on node, using fallback", error);
 			// Simple fallback
 			const canvas = app.canvas;
 			canvas.ds.offset[0] = -node.pos[0] * canvas.ds.scale;
@@ -840,46 +841,46 @@ class AF_Find_Node_by_ID_Widget {
 		}
 	}
 
-    AF_Find_Node_by_ID_ToggleInspector() {
-        this.AF_Find_Node_by_ID_SetInspectorMode(!this.inspectorMode);
+    AF_Find_Nodes_ToggleInspector() {
+        this.AF_Find_Nodes_SetInspectorMode(!this.inspectorMode);
         // Fix width when toggling inspector
         /* if (this.searchPanel) {
             this.searchPanel.style.width = '340px';
         } */
     }
 
-	AF_Find_Node_by_ID_SetInspectorMode(enabled) {
+	AF_Find_Nodes_SetInspectorMode(enabled) {
 		if (enabled && this.currentTab !== 'id') {
 			this.switchTab('id');
 		}
 		
 		this.inspectorMode = enabled;
-		const btn = document.getElementById('af-find-node-by-id-inspector-toggle');
+		const btn = document.getElementById('af-find-nodes-inspector-toggle');
 		if (btn) {
 			btn.style.background = enabled ? '#ff9800' : '#2196F3';
 			btn.textContent = enabled ? 'Exit Inspector' : 'Inspector';
 		}
 		
 		if (enabled) {
-			this.AF_Find_Node_by_ID_UpdateResults('Inspector mode active. Click any node to see its ID.');
+			this.AF_Find_Nodes_UpdateResults('Inspector mode active. Click any node to see its ID.');
 		} else {
-			this.AF_Find_Node_by_ID_UpdateResults('Inspector mode disabled.');
+			this.AF_Find_Nodes_UpdateResults('Inspector mode disabled.');
 		}
 	}
 
-    AF_Find_Node_by_ID_HandleNodeClick(node) {
+    AF_Find_Nodes_HandleNodeClick(node) {
         if (this.inspectorMode && node) {
-            const input = document.getElementById('af-find-node-by-id-input');
+            const input = document.getElementById('af-find-nodes-input');
             if (input) {
                 input.value = node.id.toString();
             }
-            this.AF_Find_Node_by_ID_HighlightNode(node);
-            this.AF_Find_Node_by_ID_AddToHistory(node.id);
-            this.AF_Find_Node_by_ID_UpdateResults(`Selected node ${node.id}: ${node.type || 'Unknown Type'}`);
+            this.AF_Find_Nodes_HighlightNode(node);
+            this.AF_Find_Nodes_AddToHistory(node.id);
+            this.AF_Find_Nodes_UpdateResults(`Selected node ${node.id}: ${node.type || 'Unknown Type'}`);
         }
     }
 
-	AF_Find_Node_by_ID_AddToHistory(searchTerm) {
+	AF_Find_Nodes_AddToHistory(searchTerm) {
 		const history = this.tabHistory[this.currentTab];
 		
 		// Remove if already exists
@@ -896,11 +897,11 @@ class AF_Find_Node_by_ID_Widget {
 		// Save to localStorage
 		localStorage.setItem(`af-find-node-history-${this.currentTab}`, JSON.stringify(this.tabHistory[this.currentTab]));
 		
-		this.AF_Find_Node_by_ID_UpdateHistory();
+		this.AF_Find_Nodes_UpdateHistory();
 	}
 
-	AF_Find_Node_by_ID_UpdateHistory() {
-		const historyContainer = document.getElementById('af-find-node-by-id-history');
+	AF_Find_Nodes_UpdateHistory() {
+		const historyContainer = document.getElementById('af-find-nodes-history');
 		if (!historyContainer) return;
 
 		historyContainer.innerHTML = '';
@@ -922,7 +923,7 @@ class AF_Find_Node_by_ID_Widget {
 			`;
 			historyBtn.onclick = () => {
 				this.tabInputs.main.value = item;
-				this.AF_Find_Node_by_ID_Search();
+				this.AF_Find_Nodes_Search();
 			};
 			historyContainer.appendChild(historyBtn);
 		});
@@ -935,8 +936,8 @@ class AF_Find_Node_by_ID_Widget {
 		}
 	}
 	
-	AF_Find_Node_by_ID_UpdateResults(message, isError = false) {
-		const status = document.getElementById('af-find-node-by-id-status');
+	AF_Find_Nodes_UpdateResults(message, isError = false) {
+		const status = document.getElementById('af-find-nodes-status');
 		if (status) {
 			status.textContent = message;
 			status.style.color = isError ? '#ff6b6b' : '#aaa';  /// Red for errors, white otherwise
@@ -944,26 +945,26 @@ class AF_Find_Node_by_ID_Widget {
 	}
 
     // Keyboard shortcut handler
-    AF_Find_Node_by_ID_HandleKeyboard(event) {
+    AF_Find_Nodes_HandleKeyboard(event) {
         // Ctrl+Shift+F to toggle search panel
         if (event.ctrlKey && event.shiftKey && event.code === 'KeyF') {
             event.preventDefault();
-            this.AF_Find_Node_by_ID_TogglePanel();
+            this.AF_Find_Nodes_TogglePanel();
         }
         // Escape to close panel
         if (event.code === 'Escape' && this.isVisible) {
             event.preventDefault();
-            this.AF_Find_Node_by_ID_HidePanel();
+            this.AF_Find_Nodes_HidePanel();
         }
     }
 }
 
 // Initialize the search widget with guard against double initialization
-window.AF_Find_Node_by_ID_Widget = new AF_Find_Node_by_ID_Widget();
+window.AF_Find_Nodes_Widget = new AF_Find_Nodes_Widget();
 
 // Register the extension
 app.registerExtension({
-    name: "AF-Find-Node-by-ID",
+    name: "AF-Find-Nodes",
 
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         // We don't need to modify node definitions
@@ -972,7 +973,7 @@ app.registerExtension({
     async setup() {
         // Add keyboard event listeners
         document.addEventListener('keydown', (e) => {
-            window.AF_Find_Node_by_ID_Widget.AF_Find_Node_by_ID_HandleKeyboard(e);
+            window.AF_Find_Nodes_Widget.AF_Find_Nodes_HandleKeyboard(e);
         });
 
         // Hook into node selection changes for inspector mode
@@ -980,7 +981,7 @@ app.registerExtension({
         
         // Monitor for node selection changes
         const checkNodeSelection = () => {
-            if (!window.AF_Find_Node_by_ID_Widget.inspectorMode) return;
+            if (!window.AF_Find_Nodes_Widget.inspectorMode) return;
             
             const currentSelected = app.canvas.selected_nodes;
             if (!currentSelected || Object.keys(currentSelected).length === 0) return;
@@ -990,7 +991,7 @@ app.registerExtension({
             const node = currentSelected[nodeId];
             
             if (node && !lastSelectedNodes.includes(node.id)) {
-                window.AF_Find_Node_by_ID_Widget.AF_Find_Node_by_ID_HandleNodeClick(node);
+                window.AF_Find_Nodes_Widget.AF_Find_Nodes_HandleNodeClick(node);
                 lastSelectedNodes = [node.id];
             }
         };
@@ -1000,11 +1001,11 @@ app.registerExtension({
 
 		// In the setup() function, replace the setInterval with:
 		const setupSelectionMonitor = () => {
-			if (window.AF_Find_Node_by_ID_Widget.inspectorMode && !selectionInterval) {
+			if (window.AF_Find_Nodes_Widget.inspectorMode && !selectionInterval) {
 				selectionInterval = setInterval(() => {
 					checkNodeSelection();
 				}, 300); // Reduced from 100ms to 300ms
-			} else if (!window.AF_Find_Node_by_ID_Widget.inspectorMode && selectionInterval) {
+			} else if (!window.AF_Find_Nodes_Widget.inspectorMode && selectionInterval) {
 				clearInterval(selectionInterval);
 				selectionInterval = null;
 				lastSelectedNodes = [];
@@ -1012,8 +1013,8 @@ app.registerExtension({
 		};
 
 		// Monitor inspector mode changes
-		const originalSetInspectorMode = window.AF_Find_Node_by_ID_Widget.AF_Find_Node_by_ID_SetInspectorMode;
-		window.AF_Find_Node_by_ID_Widget.AF_Find_Node_by_ID_SetInspectorMode = function(enabled) {
+		const originalSetInspectorMode = window.AF_Find_Nodes_Widget.AF_Find_Nodes_SetInspectorMode;
+		window.AF_Find_Nodes_Widget.AF_Find_Nodes_SetInspectorMode = function(enabled) {
 			originalSetInspectorMode.call(this, enabled);
 			setupSelectionMonitor();
 		};
@@ -1023,7 +1024,7 @@ app.registerExtension({
 		
 		let lastInspectorClick = 0;
 		canvas.addEventListener('click', (e) => {
-			if (!window.AF_Find_Node_by_ID_Widget.inspectorMode) return;
+			if (!window.AF_Find_Nodes_Widget.inspectorMode) return;
 			
 			// Debounce clicks to prevent multiple rapid triggers
 			const now = Date.now();
@@ -1031,7 +1032,7 @@ app.registerExtension({
 			lastInspectorClick = now;
 			
 			// Only proceed if we're actually in inspector mode
-			if (!window.AF_Find_Node_by_ID_Widget.inspectorMode) return;
+			if (!window.AF_Find_Nodes_Widget.inspectorMode) return;
 			
 			// Get canvas coordinates
 			const rect = canvas.getBoundingClientRect();
@@ -1046,12 +1047,12 @@ app.registerExtension({
 			const node = app.graph.getNodeOnPos(canvasX, canvasY);
 			
 			if (node) {
-				window.AF_Find_Node_by_ID_Widget.AF_Find_Node_by_ID_HandleNodeClick(node);
+				window.AF_Find_Nodes_Widget.AF_Find_Nodes_HandleNodeClick(node);
 				e.stopPropagation();
 			}
 		}, true);
 
-        console.log("AF - Find Node by ID extension loaded. Use Ctrl+Shift+F to open search panel.");
+        console.log("AF - Find Nodes extension loaded. Use Ctrl+Shift+F to open search panel.");
     },
 
     async destroyed() {
