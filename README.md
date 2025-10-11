@@ -77,6 +77,22 @@ The extension now features a tabbed interface with four search modes:
    ```
    🔍 AF - Find Nodes extension loaded!
    ```
+	
+---
+
+## ⚠️ Disclaimer
+
+This ComfyUI custom node is developed through AI-assisted coding, prompted and directed by a human developer. While considerable care has been taken to ensure proper functionality, security, and compatibility, this software is provided **"as is" without warranty of any kind**, express or implied.
+
+**By using this custom node, you acknowledge that:**
+- You install and run this software at your own risk
+- The creator is not liable for any damages, data loss, or issues arising from its use
+- Compatibility with your specific setup is not guaranteed
+- You should test thoroughly in a safe environment before production use
+
+This node has been carefully designed and tested, but individual system configurations may vary. Please report any issues on the GitHub repository.
+
+---
 
 ## Usage
 

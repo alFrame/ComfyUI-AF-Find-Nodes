@@ -14,12 +14,13 @@ NODE_DISPLAY_NAME_MAPPINGS = {}
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']
 
-__version__ = "0.0.05"
+__version__ = "0.0.06"
 __author__ = "Alex Furer"
 __title__ = "AF - Find Nodes"
 __description__ = "A ComfyUI utility extension for finding nodes by ID, title, pack, or type in workflows."
 __license__ = "MIT"
 __changelog__ = [
+    "v0.0.06 - Cosmetics, making this a version",
     "v0.0.05 - Renamed the project from \"AF - Find Node By ID\" to \"AF - Find Nodes\"",
     "v0.0.04 - Added tabs to search by ID, by Title, by Pack, by Type. Search 'By Pack' and 'By Type' are experimental features. Due to inconsistencies in how nodes are coded and distributed across different packs, these searches may produce unexpected results or false positives. Use with caution !!",
     "v0.0.03 - Clear button now also clears the search field. Dialog content cleared when closed or opened. Error messages in red. Fixed dialog width to 340px",
