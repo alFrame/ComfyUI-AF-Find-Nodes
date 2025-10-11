@@ -15,23 +15,10 @@
 // Read Me on Github
 //
 // Changelog:
-// v0.0.01
-// - Initial Version
-//
-// v0.0.02
-//   - Fixed double initialization error
-//   - Removed right-click on canvas to trigger the dialog
-//   - Fixed zooming in to node
-//
-// v0.0.03
-//   - Clear button now also clears the search field
-//   - Dialog content cleared when closed or opened
-//   - Error messages in red
-//   - Fixed dialog width to 340px
-//
-// v0.0.04
-//   - Added tabs to search by "ID", by "Title", by "Pack", by "Type"
-//   - Search 'By Pack' and 'By Type' are experimental features. Due to inconsistencies in how nodes are coded and distributed across different packs, these searches may produce unexpected results or false positives. Use with caution !!
+// "v0.0.04 - Added tabs to search by ID, by Title, by Pack, by Type. Search 'By Pack' and 'By Type' are experimental features. Due to inconsistencies in how nodes are coded and distributed across different packs, these searches may produce unexpected results or false positives. Use with caution !!",
+// "v0.0.03 - Clear button now also clears the search field. Dialog content cleared when closed or opened. Error messages in red. Fixed dialog width to 340px",
+// "v0.0.02 - Fixed double initialization error. Removed right-click on canvas to trigger the dialog. Fixed zooming in to node",
+// "v0.0.01 - Initial Version"
 //
 // Feature Requests / Wet Dreams
 // - 

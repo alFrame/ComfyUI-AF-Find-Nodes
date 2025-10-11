@@ -1,27 +1,30 @@
 """
-AF - Find Node by ID Extension for ComfyUI
-A utility extension for finding nodes by ID in ComfyUI workflows
-
-Creator: Alex Furer with Claude AI
-License: MIT
+@author: Alex Furer
+@title: AF - Find Node by ID
+@nickname: AF - Find Node by ID
+@description: A ComfyUI utility extension for finding nodes by ID (and more) in ComfyUI workflows.
 """
 
-import os
-
-# Get the directory of this file
-node_dir = os.path.dirname(__file__)
-js_path = os.path.join(node_dir, "AF_Find_Node_by_ID.js")
-
-# Tell ComfyUI to serve web files from this directory
-WEB_DIRECTORY = "." if os.path.exists(js_path) else None
+# Tell ComfyUI to serve JavaScript files from this directory
+WEB_DIRECTORY = "."
 
 # No Python nodes to register - this is a pure JavaScript extension
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 
-__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']
+__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']
+
 __version__ = "0.0.04"
 __author__ = "Alex Furer"
+__title__ = "AF - Find Node by ID"
+__description__ = "A ComfyUI utility extension for finding nodes by ID (and more) in ComfyUI workflows."
+__license__ = "MIT"
+__changelog__ = [
+    "v0.0.04 - Added tabs to search by ID, by Title, by Pack, by Type. Search 'By Pack' and 'By Type' are experimental features. Due to inconsistencies in how nodes are coded and distributed across different packs, these searches may produce unexpected results or false positives. Use with caution !!",
+    "v0.0.03 - Clear button now also clears the search field. Dialog content cleared when closed or opened. Error messages in red. Fixed dialog width to 340px",
+    "v0.0.02 - Fixed double initialization error. Removed right-click on canvas to trigger the dialog. Fixed zooming in to node",
+    "v0.0.01 - Initial Version"
+]
 
 print("*  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *")
 print(r"""
