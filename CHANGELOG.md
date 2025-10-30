@@ -1,5 +1,9 @@
 ## Changelog
 
+### v0.0.8
+- Minor changes for registry compliance
+- Cropped the UI screenshot 
+
 ### v0.0.7
 - Moved the JS to the web/ directory
 - Added nodes.py (empty basically, but needed for registration and distribution via ComfyUI Manager

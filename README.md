@@ -17,7 +17,7 @@ On top of that, Node-ID's are not visible by default. You have to switch them on
 
 Well - Here's the solution!
 
-<img width="390" height="347" alt="image" src="./Docs/screenshots/ComfyUI-AF-FindNodes-UI.webp" />
+<img width="380" height="335" alt="image" src="./Docs/screenshots/ComfyUI-AF-FindNodes-UI.webp" />
 
 Simply:
 1. Open AF - Find Nodes (`Ctrl+Shift+F`)
