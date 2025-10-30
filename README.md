@@ -1,13 +1,39 @@
-# ComfyUI-AF-Find-Nodes
+# ComfyUI AF - Find Nodes
 A ComfyUI extension that allows you to find and locate nodes by their ID, title, pack, or type in complex workflows.
 
-ComfyUI reports node IDs when it encounters errors, but there's no built-in tool to find those node IDs quickly. That's now solved with this custom node/tool.
+ComfyUI reports Node-IDs when it encounters errors, but there's no built-in tool to find those Node-IDs quickly. That's now solved with this custom node/tool.
 
-Ever had this in the console?
+Ever had this in the console? ComfyUI telling you the Node-ID it got stuck on?
 
-<img width="454" height="188" alt="image" src="https://github.com/user-attachments/assets/6b4d00de-59d3-4a96-908a-65d999a921d7" />
+<img width="468" height="128" alt="image" src="./Docs/screenshots/EverHadThisHappen.webp" />
 
-Here's the solution!
+Or this:
+
+<img width="468" height="213" alt="image" src="./Docs/screenshots/OrEvenThis.webp" />
+
+On a large workflow that means you will be spending a fair amount of time digging around the workflow canvas...
+
+On top of that, Node-ID's are not visible by default. You have to switch them on in the ComfyUI settings.
+
+Well - Here's the solution!
+
+<img width="390" height="347" alt="image" src="./Docs/screenshots/ComfyUI-AF-FindNodes-UI.webp" />
+
+Simply:
+1. Open AF - Find Nodes (`Ctrl+Shift+F`)
+2. Type `2170` and press Enter
+3. Instantly locate the problematic node!
+.. Because the AF - Find Nodes extension will zoom in on the node and highlight it.
+
+**Plus** it also let's you reverse engineer the Node-ID by activating the "Inspector", which will display the Node-ID.
+
+The AF - FInd Nodes custom node can find nodes by "ID", "Title", and  has experimental features that might even help you mitigate redundant node packs installed!
+
+Give it a try - you will not be able to live without it!
+
+**BIG FAT WARNING**: Currently Subgraph searching is **NOT** supported.
+
+---
 
 ## Features
 
@@ -15,9 +41,9 @@ Here's the solution!
 The extension now features a tabbed interface with four search modes:
 
 #### 📍 By ID
-- Enter any node ID to instantly locate and highlight it
+- Enter any Node-ID to instantly locate and highlight it
 - Auto-centers the canvas on the found node
-- Perfect for debugging when error messages reference specific node IDs
+- Perfect for debugging when error messages reference specific Node-IDs
 
 #### 📛 By Title
 - Search nodes by their title, color, cnr_id, aux_id, or name
@@ -37,7 +63,7 @@ The extension now features a tabbed interface with four search modes:
 ### 🎯 **Inspector Mode** 
 - Available in "By ID" tab only
 - Click any node to see its ID
-- Automatically fills the search field with clicked node ID
+- Automatically fills the search field with clicked Node-ID
 - Great for exploring and mapping your workflow
 
 ### 📜 **Tab-Specific Search History**
@@ -63,34 +89,20 @@ The extension now features a tabbed interface with four search modes:
 - Setting persists between sessions
 - Warning indicators on experimental tabs
 
-## Installation
-
-1. Download or clone this repository to your `ComfyUI/custom_nodes/` directory:
-   ```bash
-   cd ComfyUI/custom_nodes/
-   git clone https://github.com/alFrame/ComfyUI-AF-Find-Nodes.git
-   ```
-
-2. Restart ComfyUI
-
-3. The extension will automatically load - look for the console message:
-   ```
-   🔍 AF - Find Nodes extension loaded!
-   ```
-	
 ---
 
-## ⚠️ Disclaimer
+## Installation
 
-This ComfyUI custom node is developed through AI-assisted coding, prompted and directed by a human developer. While considerable care has been taken to ensure proper functionality, security, and compatibility, this software is provided **"as is" without warranty of any kind**, express or implied.
+### Via ComfyUI Manager (Recommended)
+1. Open ComfyUI Manager
+2. Search for "AF - Pack Prompt Nodes"
+3. Install
 
-**By using this custom node, you acknowledge that:**
-- You install and run this software at your own risk
-- The creator is not liable for any damages, data loss, or issues arising from its use
-- Compatibility with your specific setup is not guaranteed
-- You should test thoroughly in a safe environment before production use
-
-This node has been carefully designed and tested, but individual system configurations may vary. Please report any issues on the GitHub repository.
+### Manual Installation
+```bash
+cd ComfyUI/custom_nodes/
+git clone ttps://github.com/alFrame/ComfyUI-AF-Find-Nodes.git
+```
 
 ---
 
@@ -102,7 +114,7 @@ This node has been carefully designed and tested, but individual system configur
 
 ### Finding Nodes by ID
 1. Make sure you're on the "🔍 By ID" tab
-2. Enter a node ID in the search field (e.g., `42`)
+2. Enter a Node-ID in the search field (e.g., `42`)
 3. Click "Find" or press Enter
 4. The node will be highlighted and centered on screen
 
@@ -139,24 +151,14 @@ This node has been carefully designed and tested, but individual system configur
 
 ## Perfect For
 
-- **Debugging workflows** when error messages reference node IDs
+- **Debugging workflows** when error messages reference Node-IDs
 - **Large workflow navigation** - quickly jump to specific nodes
 - **Workflow organization** - finding nodes by your custom titles
 - **Pack exploration** - locating all nodes from a specific extension
 - **Type analysis** - finding all instances of a node type
 - **Workflow documentation** - mapping and exploring node relationships
 
-## Error Message Integration
-
-When ComfyUI shows error messages like:
-```
-Error occurred when executing node 147
-```
-
-Simply:
-1. Open AF - Find Nodes (`Ctrl+Shift+F`)
-2. Type `147` and press Enter
-3. Instantly locate the problematic node!
+---
 
 ## Known Limitations
 
@@ -180,61 +182,28 @@ This extension does not currently support searching within subgraphs or nested w
 - Pure JavaScript implementation
 - Tested with ComfyUI v0.0.04+
 
-## File Structure
+---
 
-```
-ComfyUI-AF-Find-Nodes/
-├── AF_Find_Nodes.js      # Main extension JavaScript
-├── __init__.py                # Python initialization
-└── README.md                  # This file
-```
+## ⚠️ Disclaimer
 
-## Changelog
+This ComfyUI custom node is developed through AI-assisted coding. While carefully tested, it is provided **"as is" without warranty**. 
 
-### v0.0.04
-- Added tabbed interface with four search modes
-- New "By Title" search for finding nodes by name
-- New "By Pack" experimental search (with aliases support)
-- New "By Type" experimental search
-- Tab-specific search history
-- Experimental features toggle with persistent settings
-- Results now shown in interactive list format
-- Auto-search for text-based tabs
-- Improved visual feedback and status messages
+**By using this node pack:**
+- You install and run at your own risk
+- The creator is not liable for damages or data loss
+- Compatibility with your setup is not guaranteed
+- Test in a safe environment before production use
 
-### v0.0.03
-- Clear button now also clears the search field
-- Dialog content cleared when closed or opened
-- Error messages shown in red
-- Fixed dialog width to 340px
-
-### v0.0.02
-- Fixed double initialization error
-- Removed right-click on canvas to trigger the dialog
-- Fixed zooming in to node
-
-### v0.0.01
-- Initial release
-
-## Contributing
-
-Issues and pull requests welcome at: https://github.com/alFrame/ComfyUI-AF-Find-Nodes
-
-Please report:
-- Bugs or unexpected behavior
-- Node packs that don't work well with experimental features
-- Feature suggestions
-- Compatibility issues
-
-## License
-
-MIT License - Feel free to use, modify, and distribute!
-
-## Credits
-
-**Creator:** Alex Furer  
-**Co-Creators:** Claude AI, QWEN3 Coder, DeepSeek
+Report issues on GitHub - we appreciate your feedback!
 
 ---
 
-*Praise, comments, bugs, improvements:* https://github.com/alFrame/ComfyUI-AF-Find-Nodes
+## 📚 Additional Resources
+
+- **[Changelog](CHANGELOG.md)** - Version history and updates
+- [GitHub Issues](https://github.com/alFrame/ComfyUI-AF-Find-Nodes/issues) - Report bugs & request features
+- [License](LICENSE) - MIT License details
+
+---
+
+**Made with ❤️ by Alex Furer & Qwen3, Claude AI, DeepSeek**

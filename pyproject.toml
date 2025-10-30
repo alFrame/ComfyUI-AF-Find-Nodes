@@ -1,0 +1,14 @@
+[project]
+name = "comfyui-af-find-nodes"
+description = "A ComfyUI extension that allows you to find and locate nodes by their ID, title, pack, or type in complex workflows."
+version = "0.0.76"
+dependencies = []
+license = {file = "LICENSE"}
+
+[project.urls]
+Repository = "https://github.com/alFrame/ComfyUI-AF-Find-Nodes"
+
+[tool.comfy]
+PublisherId = "alframe"
+DisplayName = "ComfyUI AF - Find Nodes"
+Icon = ""
