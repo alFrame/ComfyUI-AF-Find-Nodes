@@ -11,4 +11,4 @@ Repository = "https://github.com/alFrame/ComfyUI-AF-Find-Nodes"
 [tool.comfy]
 PublisherId = "alframe"
 DisplayName = "ComfyUI AF - Find Nodes"
-Icon = ""
+Icon = "https://raw.githubusercontent.com/alFrame/ComfyUI-AF-Find-Nodes/main/Docs/icon.png"
