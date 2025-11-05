@@ -188,7 +188,7 @@ This extension does not currently support searching within subgraphs or nested w
 
 This ComfyUI custom node is developed through AI-assisted coding. While carefully tested, it is provided **"as is" without warranty**. 
 
-**By using this node pack:**
+**By using this node:**
 - You install and run at your own risk
 - The creator is not liable for damages or data loss
 - Compatibility with your setup is not guaranteed
