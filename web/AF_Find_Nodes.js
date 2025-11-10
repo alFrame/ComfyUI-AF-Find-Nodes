@@ -2,25 +2,15 @@
 //
 // Creator: Alex Furer - Co-Creator(s): Claude AI & QWEN3 Coder & DeepSeek
 //
-// Praise, comment, bugs, improvements: https://github.com/alFrame/ComfyUI-AF-Find-Nodes
+// Description: A ComfyUI utility extension for finding nodes by ID, title, pack, or type in workflows.
+//
+// Repo: https://github.com/alFrame/ComfyUI-AF-Find-Nodes/
+//
+// Issues, praise, comment, bugs, improvements: https://github.com/alFrame/ComfyUI-AF-Find-Nodes/issues
 //
 // LICENSE: MIT License
 //
-// v0.0.06
-//
-// Description:
-// A ComfyUI utility extension for finding nodes by ID, title, pack, or type in workflows.
-//
-// Usage:
-// Read Me on Github
-//
-// Changelog:
-// "v0.0.06 - Cosmetics, making this a version",
-// "v0.0.05 - Renamed the project from "AF - Find Node By ID" to "AF - Find Nodes"",
-// "v0.0.04 - Added tabs to search by ID, by Title, by Pack, by Type. Search 'By Pack' and 'By Type' are experimental features. Due to inconsistencies in how nodes are coded and distributed across different packs, these searches may produce unexpected results or false positives. Use with caution !!",
-// "v0.0.03 - Clear button now also clears the search field. Dialog content cleared when closed or opened. Error messages in red. Fixed dialog width to 340px",
-// "v0.0.02 - Fixed double initialization error. Removed right-click on canvas to trigger the dialog. Fixed zooming in to node",
-// "v0.0.01 - Initial Version"
+// Usage: https://github.com/alFrame/ComfyUI-AF-Find-Nodes/blob/main/README.md
 //
 // Feature Requests / Wet Dreams
 // - 
@@ -73,7 +63,7 @@ class AF_Find_Nodes_Widget {
             font-size: 12px;
             color: #fff;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            width: 380px;  /* Fixed width */
+            width: 420px;  /* Fixed width */
             display: none;
         `;
 
@@ -207,7 +197,7 @@ class AF_Find_Nodes_Widget {
 			
 			this.AF_Find_Nodes_UpdateResults(
 				this.experimentalEnabled ? 
-				'Experimental features enabled. Use with caution!' : 
+				'Experimental features enabled. span style="color: #ff6b6b;">Use with caution!</span>' : 
 				'Experimental features disabled.'
 			);
 		};
@@ -295,14 +285,14 @@ class AF_Find_Nodes_Widget {
 		const resultsSection = document.createElement('div');
 		resultsSection.id = 'af-find-nodes-results';
 		resultsSection.style.cssText = `
-			max-height: 200px;
+			max-height: calc(70vh - 300px); /* Dynamic based on screen height */
+			min-height: 120px; /* Minimum height */
 			overflow-y: auto;
 			background: #1a1a1a;
 			border: 1px solid #555;
 			border-radius: 4px;
 			padding: 8px;
 			margin-bottom: 10px;
-			min-height: 40px; // Ensure it's always visible
 		`;
 		
 		const statusSection = document.createElement('div');
@@ -336,6 +326,63 @@ class AF_Find_Nodes_Widget {
             flex-wrap: wrap;
             gap: 4px;
         `;
+
+		// Create separate sections for star widget and support info
+		const starWidgetSection = document.createElement('div');
+		starWidgetSection.id = 'af-find-nodes-star-widget';
+		starWidgetSection.style.cssText = `
+			border-top: 1px solid #555;
+			padding-top: 8px;
+			margin-top: 8px;
+			display: ${localStorage.getItem('af-find-nodes-starred') ? 'none' : 'block'};
+		`;
+
+		const supportSection = document.createElement('div');
+		supportSection.id = 'af-find-nodes-support';
+		supportSection.style.cssText = `
+			border-top: 1px solid #555;
+			padding-top: 8px;
+			margin-top: 8px;
+			display: block; // Always visible
+		`;
+
+		// Star widget (can be hidden)
+		const starWidget = document.createElement('div');
+		starWidget.style.cssText = `
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 11px;
+			color: #ccc;
+			cursor: pointer;
+			margin-bottom: 8px;
+		`;
+
+		const starIcon = document.createElement('span');
+		starIcon.textContent = '⭐';
+		starIcon.style.fontSize = '12px';
+
+		const starText = document.createElement('span');
+		starText.innerHTML = 'Please consider <span style="color: #ffd700;">giving a star</span> if you find this helpful';
+
+		starWidget.appendChild(starIcon);
+		starWidget.appendChild(starText);
+
+		starWidget.onclick = () => {
+			// Open GitHub in new tab
+			window.open('https://github.com/alFrame/ComfyUI-AF-Find-Nodes', '_blank');
+			// Hide only the star widget, not the support section
+			starWidgetSection.style.display = 'none';
+			localStorage.setItem('af-find-nodes-starred', 'true');
+		};
+
+		// Support info (always visible)
+		const supportText = document.createElement('div');
+		supportText.innerHTML = '<span style="font-size: 10px; color: #aaa;">If you encounter any issues, please post them <a href="https://github.com/alFrame/ComfyUI-AF-Find-Nodes/issues" target="_blank" style="color: #4da6ff;">here</a></span>';
+
+		// Assemble the sections
+		starWidgetSection.appendChild(starWidget);
+		supportSection.appendChild(supportText);
 
         // Event listeners
         searchBtn.onclick = () => this.AF_Find_Nodes_Search();
@@ -386,6 +433,8 @@ class AF_Find_Nodes_Widget {
 		panel.appendChild(resultsSection);
 		panel.appendChild(experimentalSection);
 		panel.appendChild(historySection);
+		panel.appendChild(starWidgetSection);
+		panel.appendChild(supportSection);
 		
         document.body.appendChild(panel);
         this.searchPanel = panel;

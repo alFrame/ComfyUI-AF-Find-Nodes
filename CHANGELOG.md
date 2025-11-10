@@ -1,5 +1,11 @@
 ## Changelog
 
+### v0.1.0
+- Added a star rating widget
+- Added a "support" widget to GitHub issues page
+- Added a bunch of files to the .gitignore
+- Changed icon.png (ComfyUI registry icon) back to GitHub, as it didn't work, because my repo was set to private (DUH...)
+
 ### v0.0.9
 - Changed Icon location to my own website as the ComfyUI Registry botched out on any GitHub URL I tried...
 
