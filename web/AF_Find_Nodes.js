@@ -197,7 +197,7 @@ class AF_Find_Nodes_Widget {
 			
 			this.AF_Find_Nodes_UpdateResults(
 				this.experimentalEnabled ? 
-				'Experimental features enabled. span style="color: #ff6b6b;">Use with caution!</span>' : 
+				'Experimental features enabled. <span style="color: #ff6b6b;">Use with caution!</span>' : 
 				'Experimental features disabled.'
 			);
 		};
@@ -989,7 +989,7 @@ class AF_Find_Nodes_Widget {
 	AF_Find_Nodes_UpdateResults(message, isError = false) {
 		const status = document.getElementById('af-find-nodes-status');
 		if (status) {
-			status.textContent = message;
+			status.innerHTML = message;
 			status.style.color = isError ? '#ff6b6b' : '#aaa';  /// Red for errors, white otherwise
 		}
 	}
