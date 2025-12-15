@@ -24,32 +24,97 @@ if (window.AF_Find_Nodes_Widget) {
 } else {
 
 class AF_Find_Nodes_Widget {
-	constructor() {
-		this.searchPanel = null;
-		this.isVisible = false;
-		this.highlightedNode = null;
-		this.originalNodeColors = new Map();
-		this.searchHistory = [];
-		this.maxHistory = 10;
-		this.inspectorMode = false;
-		this.searchTimeout = null;
-		this.experimentalEnabled = localStorage.getItem('af-find-node-experimental') === 'true'; // ← Change to ONLY true if explicitly set
+    constructor() {
+        this.searchPanel = null;
+        this.isVisible = false;
+        this.highlightedNode = null;
+        this.originalNodeColors = new Map();
+        this.searchHistory = [];
+        this.maxHistory = 10;
+        this.inspectorMode = false;
+        this.searchTimeout = null;
+        this.experimentalEnabled = localStorage.getItem('af-find-node-experimental') === 'true';
 
-		this.workflowPackIndex = {};     // { "was": [12, 15, 23], "rgthree": [7, 8] }
-		this.workflowTypeIndex = {};     // { "KSampler": [10, 11], "CLIPTextEncode": [1, 2] }
-		this.lastWorkflowSignature = null;
-		this.scanCompleted = false;
-		
-		// Remember last tab state - default to 'id' if not set
-		this.currentTab = localStorage.getItem('af-find-node-last-tab') || 'id';
-		this.tabInputs = {};
-		this.tabHistory = { 
-			id: JSON.parse(localStorage.getItem('af-find-node-history-id') || '[]'),
-			title: JSON.parse(localStorage.getItem('af-find-node-history-title') || '[]'),
-			pack: JSON.parse(localStorage.getItem('af-find-node-history-pack') || '[]'),
-			type: JSON.parse(localStorage.getItem('af-find-node-history-type') || '[]')
-		};
-	}
+        this.workflowPackIndex = {};
+        this.workflowTypeIndex = {};
+        this.lastWorkflowSignature = null;
+        this.scanCompleted = false;
+
+        this.currentTab = localStorage.getItem('af-find-node-last-tab') || 'id';
+        this.tabInputs = {};
+        this.tabHistory = {
+            id: JSON.parse(localStorage.getItem('af-find-node-history-id') || '[]'),
+            title: JSON.parse(localStorage.getItem('af-find-node-history-title') || '[]'),
+            pack: JSON.parse(localStorage.getItem('af-find-node-history-pack') || '[]'),
+            type: JSON.parse(localStorage.getItem('af-find-node-history-type') || '[]')
+        };
+
+        // Add workflow change monitoring WITHOUT overriding anything
+        this.workflowMonitorInterval = null;
+        this.lastNodeCount = 0;
+        this.selectionInterval = null;
+        this.lastSelectedNodes = [];
+    }
+
+
+    setupSelectionMonitor() {
+        if (this.inspectorMode && !this.selectionInterval) {
+            this.selectionInterval = setInterval(() => {
+                this.checkNodeSelection();
+            }, 300);
+        } else if (!this.inspectorMode && this.selectionInterval) {
+            clearInterval(this.selectionInterval);
+            this.selectionInterval = null;
+            this.lastSelectedNodes = [];
+        }
+    }
+
+    checkNodeSelection() {
+        if (!this.inspectorMode || !app.canvas || !app.canvas.selected_nodes) return;
+
+        const currentSelected = app.canvas.selected_nodes;
+        if (!currentSelected || Object.keys(currentSelected).length === 0) return;
+
+        // Get the first selected node
+        const nodeId = Object.keys(currentSelected)[0];
+        const node = currentSelected[nodeId];
+
+        if (node && !this.lastSelectedNodes.includes(node.id)) {
+            this.AF_Find_Nodes_HandleNodeClick(node);
+            this.lastSelectedNodes = [node.id];
+        }
+    }
+
+    // SAFE: Monitor workflow changes without overriding ComfyUI functions
+    startWorkflowMonitor() {
+        if (this.workflowMonitorInterval) return;
+
+        this.workflowMonitorInterval = setInterval(() => {
+            if (!app.graph || !app.graph.nodes) return;
+
+            const currentCount = app.graph.nodes.length;
+            // Check if workflow changed significantly (more than just selection changes)
+            if (Math.abs(currentCount - this.lastNodeCount) > 0) {
+                this.lastNodeCount = currentCount;
+                // Debounce the scan
+                clearTimeout(this.workflowScanTimeout);
+                this.workflowScanTimeout = setTimeout(() => {
+                    this.scanWorkflowForPacks();
+                }, 1000);
+            }
+        }, 2000); // Check every 2 seconds - very conservative
+    }
+
+    stopWorkflowMonitor() {
+        if (this.workflowMonitorInterval) {
+            clearInterval(this.workflowMonitorInterval);
+            this.workflowMonitorInterval = null;
+        }
+        if (this.workflowScanTimeout) {
+            clearTimeout(this.workflowScanTimeout);
+            this.workflowScanTimeout = null;
+        }
+    }
 
     createSearchPanel() {
         // Create main container
@@ -827,7 +892,7 @@ showWorkflowStats() {
 	    this.searchPanel.style.display = 'block';
 	    this.isVisible = true;
 
-	    // Scan workflow for packs/types
+	    // Scan workflow when panel opens (safe, on-demand scanning)
 	    this.scanWorkflowForPacks();
 
 	    // Show quick stats if we have data
@@ -858,16 +923,22 @@ showWorkflowStats() {
 
 	    // Update tab appearance to reflect experimental setting
 	    this.updateTabAppearance();
+
+	    // Start monitoring when panel is open
+	    this.startWorkflowMonitor();
 	}
 
-    AF_Find_Nodes_HidePanel() {
-        if (this.searchPanel) {
-            this.searchPanel.style.display = 'none';
-        }
-        this.isVisible = false;
-        this.AF_Find_Nodes_ClearAll();
-        this.AF_Find_Nodes_SetInspectorMode(false);
-    }
+	AF_Find_Nodes_HidePanel() {
+	    if (this.searchPanel) {
+	        this.searchPanel.style.display = 'none';
+	    }
+	    this.isVisible = false;
+	    this.AF_Find_Nodes_ClearAll();
+	    this.AF_Find_Nodes_SetInspectorMode(false);
+
+	    // Stop monitoring when panel is closed
+	    this.stopWorkflowMonitor();
+	}
 
     AF_Find_Nodes_TogglePanel() {
         if (this.isVisible) {
@@ -1413,24 +1484,27 @@ showWorkflowStats() {
         } */
     }
 
-	AF_Find_Nodes_SetInspectorMode(enabled) {
-		if (enabled && this.currentTab !== 'id') {
-			this.switchTab('id');
-		}
-		
-		this.inspectorMode = enabled;
-		const btn = document.getElementById('af-find-nodes-inspector-toggle');
-		if (btn) {
-			btn.style.background = enabled ? '#ff9800' : '#2196F3';
-			btn.textContent = enabled ? 'Exit Inspector' : 'Inspector';
-		}
-		
-		if (enabled) {
-			this.AF_Find_Nodes_UpdateResults('Inspector mode active. Click any node to see its ID.');
-		} else {
-			this.AF_Find_Nodes_UpdateResults('Inspector mode disabled.');
-		}
-	}
+    AF_Find_Nodes_SetInspectorMode(enabled) {
+        if (enabled && this.currentTab !== 'id') {
+            this.switchTab('id');
+        }
+
+        this.inspectorMode = enabled;
+        const btn = document.getElementById('af-find-nodes-inspector-toggle');
+        if (btn) {
+            btn.style.background = enabled ? '#ff9800' : '#2196F3';
+            btn.textContent = enabled ? 'Exit Inspector' : 'Inspector';
+        }
+
+        // Setup or cleanup selection monitor
+        this.setupSelectionMonitor();
+
+        if (enabled) {
+            this.AF_Find_Nodes_UpdateResults('Inspector mode active. Click any node to see its ID.');
+        } else {
+            this.AF_Find_Nodes_UpdateResults('Inspector mode disabled.');
+        }
+    }
 
     AF_Find_Nodes_HandleNodeClick(node) {
         if (this.inspectorMode && node) {
@@ -1564,7 +1638,7 @@ showWorkflowStats() {
 // Initialize the search widget with guard against double initialization
 window.AF_Find_Nodes_Widget = new AF_Find_Nodes_Widget();
 
-// Register the extension
+// Register the extension - SAFE VERSION with NO overrides
 app.registerExtension({
     name: "AF-Find-Nodes",
 
@@ -1578,107 +1652,22 @@ app.registerExtension({
             window.AF_Find_Nodes_Widget.AF_Find_Nodes_HandleKeyboard(e);
         });
 
-        // Scan when workflow loads
-        const originalLoadGraphData = app.loadGraphData;
-        if (originalLoadGraphData) {
-            app.loadGraphData = async function(data) {
-                const result = await originalLoadGraphData.call(this, data);
-
-                // Scan after a short delay
-                setTimeout(() => {
-                    if (window.AF_Find_Nodes_Widget) {
-                        window.AF_Find_Nodes_Widget.scanWorkflowForPacks();
-                    }
-                }, 500);
-
-                return result;
-            };
-        }
-
-        // Hook into node selection changes for inspector mode
-        let lastSelectedNodes = [];
-        
-        // Monitor for node selection changes
-        const checkNodeSelection = () => {
-            if (!window.AF_Find_Nodes_Widget.inspectorMode) return;
-            
-            const currentSelected = app.canvas.selected_nodes;
-            if (!currentSelected || Object.keys(currentSelected).length === 0) return;
-            
-            // Get the first selected node
-            const nodeId = Object.keys(currentSelected)[0];
-            const node = currentSelected[nodeId];
-            
-            if (node && !lastSelectedNodes.includes(node.id)) {
-                window.AF_Find_Nodes_Widget.AF_Find_Nodes_HandleNodeClick(node);
-                lastSelectedNodes = [node.id];
-            }
-        };
-        
-		// Check selection periodically when inspector is active
-		let selectionInterval = null;
-
-		// In the setup() function, replace the setInterval with:
-		const setupSelectionMonitor = () => {
-			if (window.AF_Find_Nodes_Widget.inspectorMode && !selectionInterval) {
-				selectionInterval = setInterval(() => {
-					checkNodeSelection();
-				}, 300); // Reduced from 100ms to 300ms
-			} else if (!window.AF_Find_Nodes_Widget.inspectorMode && selectionInterval) {
-				clearInterval(selectionInterval);
-				selectionInterval = null;
-				lastSelectedNodes = [];
-			}
-		};
-
-		// Monitor inspector mode changes
-		const originalSetInspectorMode = window.AF_Find_Nodes_Widget.AF_Find_Nodes_SetInspectorMode;
-		window.AF_Find_Nodes_Widget.AF_Find_Nodes_SetInspectorMode = function(enabled) {
-			originalSetInspectorMode.call(this, enabled);
-			setupSelectionMonitor();
-		};
-
-        // Also try hooking into the canvas click event
-        const canvas = app.canvas.canvas;
-		
-		let lastInspectorClick = 0;
-		canvas.addEventListener('click', (e) => {
-			if (!window.AF_Find_Nodes_Widget.inspectorMode) return;
-			
-			// Debounce clicks to prevent multiple rapid triggers
-			const now = Date.now();
-			if (now - lastInspectorClick < 200) return; // 200ms debounce
-			lastInspectorClick = now;
-			
-			// Only proceed if we're actually in inspector mode
-			if (!window.AF_Find_Nodes_Widget.inspectorMode) return;
-			
-			// Get canvas coordinates
-			const rect = canvas.getBoundingClientRect();
-			const x = e.clientX - rect.left;
-			const y = e.clientY - rect.top;
-			
-			// Convert to canvas coordinates
-			const canvasX = (x - app.canvas.ds.offset[0]) / app.canvas.ds.scale;
-			const canvasY = (y - app.canvas.ds.offset[1]) / app.canvas.ds.scale;
-			
-			// Find node at position
-			const node = app.graph.getNodeOnPos(canvasX, canvasY);
-			
-			if (node) {
-				window.AF_Find_Nodes_Widget.AF_Find_Nodes_HandleNodeClick(node);
-				e.stopPropagation();
-			}
-		}, true);
-
         console.log("AF - Find Nodes extension loaded. Use Ctrl+Shift+F to open search panel.");
+
+        // Start workflow monitoring when extension loads (but only scans when needed)
+        window.AF_Find_Nodes_Widget.startWorkflowMonitor();
     },
 
     async destroyed() {
-        // Clean up interval when extension is destroyed
-        if (selectionInterval) {
-            clearInterval(selectionInterval);
-            selectionInterval = null;
+        // Clean up all intervals and timeouts
+        if (window.AF_Find_Nodes_Widget) {
+            window.AF_Find_Nodes_Widget.stopWorkflowMonitor();
+
+            // Clean up selection interval if it exists
+            if (window.AF_Find_Nodes_Widget.selectionInterval) {
+                clearInterval(window.AF_Find_Nodes_Widget.selectionInterval);
+                window.AF_Find_Nodes_Widget.selectionInterval = null;
+            }
         }
     }
 });

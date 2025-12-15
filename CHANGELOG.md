@@ -1,5 +1,12 @@
 ## Changelog
 
+### v0.2.2
+- Critical workflow loading/tab duplication bug
+- The extension was dangerously overriding ComfyUI's core loadGraphData() function, which interfered with workflow management and caused infinite tab creation when loading workflows.
+- Removed the unsafe loadGraphData override completely
+- Added safe workflow monitoring using setInterval polling instead of function overriding
+- Added proper cleanup of all intervals in destroyed() method
+
 ### v0.2.1
 - Updated README with screenshots
 
