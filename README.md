@@ -60,6 +60,14 @@ The extension now features a tabbed interface with four search modes:
 - Examples: "KSampler", "CLIPTextEncode", "LoadImage"
 - Useful for finding all instances of a specific node type
 
+#### 📊 Stats
+- View comprehensive workflow statistics and analytics
+- See top custom packs ranked with medals (🥇🥈🥉)
+- Identify cleanup opportunities (packs with only 1-2 nodes)
+- Visual pack distribution charts
+- Export pack lists and node types for documentation
+- Automatic workflow scanning and indexing
+
 ### 🎯 **Inspector Mode** 
 - Available in "By ID" tab only
 - Click any node to see its ID
@@ -135,6 +143,34 @@ git clone ttps://github.com/alFrame/ComfyUI-AF-Find-Nodes.git
 2. Switch to the "🔎 By Type" tab
 3. Enter a node type (e.g., "KSampler", "CLIP")
 4. View all matching nodes in your workflow
+
+### Viewing Workflow Statistics
+1. Switch to the "📊 Stats" tab
+2. View your **Workflow Overview**:
+   - Total nodes, unique packs, custom packs, and node types
+   - Quick export buttons for documentation
+3. Browse the **All Node Packs** list:
+   - Complete scrollable list of all packs in your workflow
+   - Packs ranked by usage with visual indicators
+   - Color-coded: Core ComfyUI nodes (blue), Low-usage packs (green)
+   - Each pack shows node count and percentage distribution
+4. Review **Cleanup Opportunities** (if applicable):
+   - Automatically identifies packs with only 1-2 nodes
+   - Helps you spot redundant or rarely-used custom nodes
+   - Consider consolidating or removing these for a cleaner workflow
+5. Check the **Pack Distribution** chart:
+   - Visual bar chart showing top 5 packs by usage
+   - Quick visual comparison of pack dominance in your workflow
+6. View **Node Types Overview**:
+   - Total unique node types in workflow
+   - Count of UUID-based custom nodes/subgraphs
+7. Use **Quick Export** buttons (at top of Stats tab):
+   - **📋 Packs**: Copy formatted pack list for README/documentation
+   - **📝 Filtered Types**: Export node types excluding UUIDs
+   - **📄 All Types**: Export complete node type list including UUIDs
+8. Statistics automatically update when you load or switch workflows
+
+## General Usage Tips
 
 ### Using Inspector Mode
 1. Switch to the "🔍 By ID" tab
