@@ -17,7 +17,7 @@ On top of that, Node-ID's are not visible by default. You have to switch them on
 
 Well - Here's the solution!
 
-<img width="380" height="335" alt="image" src="./Docs/screenshots/ComfyUI-AF-FindNodes-UI.webp" />
+<img width="466" height="397" alt="image" src="./Docs/screenshots/ComfyUI-AF-FindNodes-UI.webp" />
 
 Simply:
 1. Open AF - Find Nodes (`Ctrl+Shift+F`)
@@ -45,20 +45,28 @@ The extension now features a tabbed interface with four search modes:
 - Auto-centers the canvas on the found node
 - Perfect for debugging when error messages reference specific Node-IDs
 
+<img width="466" height="397" alt="image" src="./Docs/screenshots/ComfyUI-AF-FindNodes-UI.webp" />
+
 #### 📛 By Title
 - Search nodes by their title, color, cnr_id, aux_id, or name
 - Finds nodes based on your custom naming and organization
 - Real-time search as you type (searches after 2+ characters)
+
+<img width="466" height="397" alt="image" src="./Docs/screenshots/AF-FindNode_UI_By-Title.webp" />
 
 #### 📦 By Pack (Experimental)
 - Search for all nodes from a specific pack/extension
 - Examples: "rgthree", "WAS", "efficiency", "controlnet"
 - Includes smart alias matching (e.g., "easy" finds "EasyUse")
 
+<img width="466" height="397" alt="image" src="./Docs/screenshots/AF-FindNode_UI_By-Pack.webp" />
+
 #### 🔎 By Type (Experimental)
 - Search by node type/class name
 - Examples: "KSampler", "CLIPTextEncode", "LoadImage"
 - Useful for finding all instances of a specific node type
+
+<img width="466" height="397" alt="image" src="./Docs/screenshots/AF-FindNode_UI_By-Type.webp" />
 
 #### 📊 Stats
 - View comprehensive workflow statistics and analytics
@@ -67,6 +75,8 @@ The extension now features a tabbed interface with four search modes:
 - Visual pack distribution charts
 - Export pack lists and node types for documentation
 - Automatic workflow scanning and indexing
+
+<img width="466" height="711" alt="image" src="./Docs/screenshots/AF-FindNode_UI_Stats.webp" />
 
 ### 🎯 **Inspector Mode** 
 - Available in "By ID" tab only

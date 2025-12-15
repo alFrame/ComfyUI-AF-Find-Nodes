@@ -90,3 +90,6 @@ yarn-error.log*
 Status.txt
 nodes.zip
 node.zip
+*.psd
+*.docx
+helpers/

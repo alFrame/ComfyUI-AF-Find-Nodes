@@ -1,5 +1,13 @@
 ## Changelog
 
+### v0.2.1
+- Updated README with screenshots
+
+### v0.2.0
+- Added statistics panel
+- Updated README
+- Added screenshot of error message
+
 ### v0.1.0
 - Added a star rating widget
 - Added a "support" widget to GitHub issues page
