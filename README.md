@@ -45,28 +45,28 @@ The extension now features a tabbed interface with four search modes:
 - Auto-centers the canvas on the found node
 - Perfect for debugging when error messages reference specific Node-IDs
 
-<img width="466" height="397" alt="image" src="./Docs/screenshots/ComfyUI-AF-FindNodes-UI.webp" />
+<img width="512" height="387" alt="image" src="./Docs/screenshots/ComfyUI-AF-FindNodes-UI.webp" />
 
 #### 📛 By Title
 - Search nodes by their title, color, cnr_id, aux_id, or name
 - Finds nodes based on your custom naming and organization
 - Real-time search as you type (searches after 2+ characters)
 
-<img width="466" height="397" alt="image" src="./Docs/screenshots/AF-FindNode_UI_By-Title.webp" />
+<img width="512" height="387" alt="image" src="./Docs/screenshots/AF-FindNode_UI_By-Title.webp" />
 
 #### 📦 By Pack (Experimental)
 - Search for all nodes from a specific pack/extension
 - Examples: "rgthree", "WAS", "efficiency", "controlnet"
 - Includes smart alias matching (e.g., "easy" finds "EasyUse")
 
-<img width="466" height="397" alt="image" src="./Docs/screenshots/AF-FindNode_UI_By-Pack.webp" />
+<img width="512" height="387" alt="image" src="./Docs/screenshots/AF-FindNode_UI_By-Pack.webp" />
 
 #### 🔎 By Type (Experimental)
 - Search by node type/class name
 - Examples: "KSampler", "CLIPTextEncode", "LoadImage"
 - Useful for finding all instances of a specific node type
 
-<img width="466" height="397" alt="image" src="./Docs/screenshots/AF-FindNode_UI_By-Type.webp" />
+<img width="512" height="387" alt="image" src="./Docs/screenshots/AF-FindNode_UI_By-Type.webp" />
 
 #### 📊 Stats
 - View comprehensive workflow statistics and analytics
@@ -76,7 +76,35 @@ The extension now features a tabbed interface with four search modes:
 - Export pack lists and node types for documentation
 - Automatic workflow scanning and indexing
 
-<img width="466" height="711" alt="image" src="./Docs/screenshots/AF-FindNode_UI_Stats.webp" />
+<img width="512" height="894" alt="image" src="./Docs/screenshots/AF-FindNode_UI_Stats.webp" />
+
+#### 🔄 Updates
+- Scan your workflow for nodes with version mismatches
+- Compare workflow node versions against installed versions
+- Batch update multiple nodes while preserving connections and values
+- Smart categorization of update types:
+  - ✅ **Update available**: Newer version installed
+  - ⚠️ **Workflow newer**: Workflow uses newer version than installed
+  - ⚪ **Unversioned workflow**: Node in workflow has no version info
+  - ❌ **Unversioned installed**: Installed version unknown
+- Collapsible pack organization for easy navigation
+- Click any node to select and center it in your workflow
+- Auto-backup option before applying updates (recommended)
+- Manual backup button for extra safety
+- Select individual nodes or entire packs for updating
+- Core ComfyUI node update warnings
+- Preserves node connections, widget values, position, size, and styling
+
+<img width="512" height="1116" alt="image" src="./Docs/screenshots/AF-FindNode_UI_Updates.webp" />
+
+**How to use the Updates tab:**
+1. Switch to the "🔄 Updates" tab
+2. Click "🔍 Scan for Updates" to analyze your workflow
+3. Review the results organized by pack
+4. Enable "Auto-backup before updating" (recommended)
+5. Select nodes to update (individually or by pack)
+6. Click "📥 Update Selected Nodes" to apply updates
+7. Node recreation preserves all connections and values
 
 ### 🎯 **Inspector Mode** 
 - Available in "By ID" tab only

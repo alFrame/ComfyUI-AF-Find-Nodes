@@ -1,5 +1,12 @@
 ## Changelog
 
+### v0.3.0
+- Added a tab to update nodes in the workflow with node versions of already installed node packs and ComfyUI core nodes
+- Changed the display of found node packs under the stats tab. It's now collapsible items list
+- New screenshots
+- Small bugs and inconveniences fixed
+- Switched to GNU 3.0 LICENSE
+
 ### v0.2.2
 - Critical workflow loading/tab duplication bug
 - The extension was dangerously overriding ComfyUI's core loadGraphData() function, which interfered with workflow management and caused infinite tab creation when loading workflows.

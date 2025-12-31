@@ -14,13 +14,20 @@
 //
 // Feature Requests / Wet Dreams
 // - 
+/*
+ * Copyright (C) 2025 Alex Furer
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
 
 import { app } from "/scripts/app.js";
 import { api } from "/scripts/api.js";
 
 // Prevent double initialization
 if (window.AF_Find_Nodes_Widget) {
-    console.log("AF - Find Nodes already loaded, skipping initialization");
+    // console.log("AF - Find Nodes already loaded, skipping initialization");
 } else {
 
 class AF_Find_Nodes_Widget {
@@ -54,6 +61,12 @@ class AF_Find_Nodes_Widget {
         this.lastNodeCount = 0;
         this.selectionInterval = null;
         this.lastSelectedNodes = [];
+        // Updates tab state
+        this.updateableNodes = [];
+        this.selectedUpdates = new Set();
+        this.autoBackupEnabled = localStorage.getItem('af-find-node-auto-backup') !== 'false';
+        this.collapsedPacks = new Set();
+        this.collapsedStatsPacks = new Set(); // Track collapsed packs in Stats tab
     }
 
 
@@ -133,7 +146,7 @@ class AF_Find_Nodes_Widget {
             font-size: 12px;
             color: #fff;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            width: 460px;  /* Fixed width */
+            width: 500px;  /* Fixed width */
             display: none;
         `;
 
@@ -170,131 +183,133 @@ class AF_Find_Nodes_Widget {
         titleBar.appendChild(title);
         titleBar.appendChild(closeBtn);
 
-		// Create tab container
-		const tabContainer = document.createElement('div');
-		tabContainer.style.cssText = `
-			display: flex;
-			margin-bottom: 10px;
-			border-bottom: 1px solid #555;
-		`;
-		
-		// Define tabs
-		this.tabs = [
-			{ id: 'id', name: '🔍 By ID', placeholder: 'Enter node ID (e.g., 42)' },
-			{ id: 'title', name: '📛 By Title', placeholder: 'Search node titles, colors, cnr_id, aux_id...' },
-			{ id: 'pack', name: '📦 By Pack', placeholder: 'Search node packs (e.g., rgthree, WAS, efficiency)' },
-		    { id: 'type', name: '🔎 By Type', placeholder: 'Search node types (e.g., KSampler, CLIPTextEncode)' },
-		    { id: 'stats', name: '📊 Stats', placeholder: 'Workflow statistics and pack overview' }
-			];
-		
-		this.tabInputs = {};
-				
-		// Create tab buttons
-		this.tabs.forEach(tab => {
-			const tabBtn = document.createElement('button');
-			tabBtn.textContent = tab.name;
-			tabBtn.dataset.tab = tab.id;
-			
-			const isExperimental = tab.id === 'pack' || tab.id === 'type';
-			const isActive = tab.id === this.currentTab;
-			
-			tabBtn.style.cssText = `
-				flex: 1;
-				padding: 6px 4px;
-				background: ${isActive ? (isExperimental ? '#7a4a1a' : '#555') : (isExperimental ? '#5a2a0a' : '#333')};
-				border: none;
-				border-bottom: ${isActive ? (isExperimental ? '2px solid #ff9800' : '2px solid #4CAF50') : 'none'};
-				border-right: 1px solid #666;
-				color: white;
-				cursor: pointer;
-				font-size: 10px;
-				border-radius: 0;
-				opacity: ${isExperimental && !this.experimentalEnabled ? '0.6' : '1'};
-			`;
-			
-			// Remove right border from last tab
-			if (tab.id === 'type') {
-				tabBtn.style.borderRight = 'none';
-			}
-			
-			tabBtn.onclick = () => {
-				if ((tab.id === 'pack' || tab.id === 'type') && !this.experimentalEnabled) {
-					this.AF_Find_Nodes_UpdateResults('Experimental features are disabled. Enable them in settings below.', true);
-					return;
-				}
-				this.switchTab(tab.id);
-			};
-			
-			tabContainer.appendChild(tabBtn);
-		});
+        // Create tab container
+        const tabContainer = document.createElement('div');
+        tabContainer.style.cssText = `
+            display: flex;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #555;
+        `;
 
-		// Add experimental features toggle section
-		const experimentalSection = document.createElement('div');
-		experimentalSection.style.cssText = `
-			border-top: 1px solid #555;
-			padding: 12px 0;
-			font-size: 10px;
-		`;
+        // Define tabs
+        this.tabs = [
+            { id: 'id', name: '🔍 By ID', placeholder: 'Enter node ID (e.g., 42)' },
+            { id: 'title', name: '📛 By Title', placeholder: 'Search node titles, colors, cnr_id, aux_id...' },
+            { id: 'pack', name: '📦 By Pack', placeholder: 'Search node packs (e.g., rgthree, WAS, efficiency)' },
+            { id: 'type', name: '🔎 By Type', placeholder: 'Search node types (e.g., KSampler, CLIPTextEncode)' },
+            { id: 'stats', name: '📊 Stats', placeholder: 'Workflow statistics and pack overview' },
+            { id: 'updates', name: '🔄 Updates', placeholder: 'Check for node version updates' }
+            ];
 
-		const experimentalLabel = document.createElement('label');
-		experimentalLabel.style.cssText = `
-			display: flex;
-			align-items: center;
-			gap: 6px;
-			color: #ff9800;
-			cursor: pointer;
-		`;
+        this.tabInputs = {};
 
-		const experimentalCheckbox = document.createElement('input');
-		experimentalCheckbox.type = 'checkbox';
-		experimentalCheckbox.checked = this.experimentalEnabled;
-		experimentalCheckbox.style.cssText = `
-			margin: 0;
-		`;
+        // Create tab buttons
+        this.tabs.forEach(tab => {
+            const tabBtn = document.createElement('button');
+            tabBtn.textContent = tab.name;
+            tabBtn.dataset.tab = tab.id;
 
-		const experimentalText = document.createElement('span');
-		experimentalText.innerHTML = 'Enable experimental features <span style="color: #ff6b6b;">(may not work consistently)</span>';
+            const isExperimental = tab.id === 'pack' || tab.id === 'type';
+            const isStats = tab.id === 'stats' || tab.id === 'updates';
+            const isActive = tab.id === this.currentTab;
 
-		experimentalCheckbox.onchange = (e) => {
-			this.experimentalEnabled = e.target.checked;
-			localStorage.setItem('af-find-node-experimental', this.experimentalEnabled.toString());
-			
-			// Update tab appearances
-			this.updateTabAppearance();
-			
-			if (!this.experimentalEnabled && (this.currentTab === 'pack' || this.currentTab === 'type')) {
-				this.switchTab('id'); // Switch to safe tab if experimental was active
-			}
-			
-			this.AF_Find_Nodes_UpdateResults(
-				this.experimentalEnabled ? 
-				'Experimental features enabled. <span style="color: #ff6b6b;">Use with caution!</span>' : 
-				'Experimental features disabled.'
-			);
-		};
+            tabBtn.style.cssText = `
+                flex: 1;
+                padding: 6px 4px;
+                background: ${isActive ? (isExperimental ? '#7a4a1a' : (isStats ? '#2a4a7a' : '#555')) : (isExperimental ? '#5a2a0a' : (isStats ? '#1a2a5a' : '#333'))};
+                border: none;
+                border-bottom: ${isActive ? (isExperimental ? '2px solid #ff9800' : (isStats ? '2px solid #4da6ff' : '2px solid #4CAF50')) : 'none'};
+                border-right: 1px solid #666;
+                color: white;
+                cursor: pointer;
+                font-size: 10px;
+                border-radius: 0;
+                opacity: ${isExperimental && !this.experimentalEnabled ? '0.6' : '1'};
+            `;
 
-		experimentalLabel.appendChild(experimentalCheckbox);
-		experimentalLabel.appendChild(experimentalText);
-		experimentalSection.appendChild(experimentalLabel);
-		
-		// Create tab-specific input
-		const searchInput = document.createElement('input');
-		searchInput.type = 'text';
-		searchInput.placeholder = this.tabs[0].placeholder;
-		searchInput.id = 'af-find-nodes-input';
-		searchInput.style.cssText = `
-			width: 100%;
-			padding: 6px;
-			margin-bottom: 8px;
-			background: #1a1a1a;
-			border: 1px solid #555;
-			border-radius: 4px;
-			color: #fff;
-			font-family: monospace;
-		`;
-		
-		// Store reference to main input
-		this.tabInputs.main = searchInput;
+            // Remove right border from last tab
+            if (tab.id === 'updates') {
+                tabBtn.style.borderRight = 'none';
+            }
+
+            tabBtn.onclick = () => {
+                if ((tab.id === 'pack' || tab.id === 'type') && !this.experimentalEnabled) {
+                    this.AF_Find_Nodes_UpdateResults('Experimental features are disabled. Enable them in settings below.', true);
+                    return;
+                }
+                this.switchTab(tab.id);
+            };
+
+            tabContainer.appendChild(tabBtn);
+        });
+
+        // Add experimental features toggle section
+        const experimentalSection = document.createElement('div');
+        experimentalSection.style.cssText = `
+            border-top: 1px solid #555;
+            padding: 12px 0;
+            font-size: 10px;
+        `;
+
+        const experimentalLabel = document.createElement('label');
+        experimentalLabel.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #ff9800;
+            cursor: pointer;
+        `;
+
+        const experimentalCheckbox = document.createElement('input');
+        experimentalCheckbox.type = 'checkbox';
+        experimentalCheckbox.checked = this.experimentalEnabled;
+        experimentalCheckbox.style.cssText = `
+            margin: 0;
+        `;
+
+        const experimentalText = document.createElement('span');
+        experimentalText.innerHTML = 'Enable experimental features <span style="color: #ff6b6b;">(may not work consistently)</span>';
+
+        experimentalCheckbox.onchange = (e) => {
+            this.experimentalEnabled = e.target.checked;
+            localStorage.setItem('af-find-node-experimental', this.experimentalEnabled.toString());
+
+            // Update tab appearances
+            this.updateTabAppearance();
+
+            if (!this.experimentalEnabled && (this.currentTab === 'pack' || this.currentTab === 'type')) {
+                this.switchTab('id'); // Switch to safe tab if experimental was active
+            }
+
+            this.AF_Find_Nodes_UpdateResults(
+                this.experimentalEnabled ?
+                'Experimental features enabled. <span style="color: #ff6b6b;">Use with caution!</span>' :
+                'Experimental features disabled.'
+            );
+        };
+
+        experimentalLabel.appendChild(experimentalCheckbox);
+        experimentalLabel.appendChild(experimentalText);
+        experimentalSection.appendChild(experimentalLabel);
+
+        // Create tab-specific input
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = this.tabs[0].placeholder;
+        searchInput.id = 'af-find-nodes-input';
+        searchInput.style.cssText = `
+            width: 100%;
+            padding: 6px;
+            margin-bottom: 8px;
+            background: #1a1a1a;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            font-family: monospace;
+        `;
+
+        // Store reference to main input
+        this.tabInputs.main = searchInput;
 
         // Search input section
         const searchSection = document.createElement('div');
@@ -302,7 +317,7 @@ class AF_Find_Nodes_Widget {
 
         searchInput.placeholder = this.tabs[0].placeholder;
         searchInput.id = 'af-find-nodes-input';
-		;
+        ;
 
         const buttonRow = document.createElement('div');
         buttonRow.style.cssText = `
@@ -349,31 +364,31 @@ class AF_Find_Nodes_Widget {
             color: white;
             cursor: pointer;
             font-size: 11px;
-			display: ${this.currentTab === 'id' ? 'block' : 'none'};
+            display: ${this.currentTab === 'id' ? 'block' : 'none'};
         `;
 
         // Results section
-		const resultsSection = document.createElement('div');
-		resultsSection.id = 'af-find-nodes-results';
-		resultsSection.style.cssText = `
-		    max-height: 70vh; /* Use viewport height instead of fixed calculation */
-		    overflow-y: auto;
-		    background: #1a1a1a;
-		    border: 1px solid #555;
-		    border-radius: 4px;
-		    padding: 8px;
-		    margin-bottom: 10px;
-		`;
-		
-		const statusSection = document.createElement('div');
-		statusSection.id = 'af-find-nodes-status';
-		statusSection.style.cssText = `
-			font-size: 11px;
-			color: #aaa;
-			margin-bottom: 8px;
-			min-height: 14px;
-		`;
-		
+        const resultsSection = document.createElement('div');
+        resultsSection.id = 'af-find-nodes-results';
+        resultsSection.style.cssText = `
+            max-height: 70vh; /* Use viewport height instead of fixed calculation */
+            overflow-y: auto;
+            background: #1a1a1a;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 10px;
+        `;
+
+        const statusSection = document.createElement('div');
+        statusSection.id = 'af-find-nodes-status';
+        statusSection.style.cssText = `
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 8px;
+            min-height: 14px;
+        `;
+
         // History section
         const historySection = document.createElement('div');
         historySection.style.cssText = `
@@ -397,115 +412,115 @@ class AF_Find_Nodes_Widget {
             gap: 4px;
         `;
 
-		// Create separate sections for star widget and support info
-		const starWidgetSection = document.createElement('div');
-		starWidgetSection.id = 'af-find-nodes-star-widget';
-		starWidgetSection.style.cssText = `
-			border-top: 1px solid #555;
-			padding-top: 8px;
-			margin-top: 8px;
-			display: ${localStorage.getItem('af-find-nodes-starred') ? 'none' : 'block'};
-		`;
+        // Create separate sections for star widget and support info
+        const starWidgetSection = document.createElement('div');
+        starWidgetSection.id = 'af-find-nodes-star-widget';
+        starWidgetSection.style.cssText = `
+            border-top: 1px solid #555;
+            padding-top: 8px;
+            margin-top: 8px;
+            display: ${localStorage.getItem('af-find-nodes-starred') ? 'none' : 'block'};
+        `;
 
-		const supportSection = document.createElement('div');
-		supportSection.id = 'af-find-nodes-support';
-		supportSection.style.cssText = `
-			border-top: 1px solid #555;
-			padding-top: 8px;
-			margin-top: 8px;
-			display: block; // Always visible
-		`;
+        const supportSection = document.createElement('div');
+        supportSection.id = 'af-find-nodes-support';
+        supportSection.style.cssText = `
+            border-top: 1px solid #555;
+            padding-top: 8px;
+            margin-top: 8px;
+            display: block; // Always visible
+        `;
 
-		// Star widget (can be hidden)
-		const starWidget = document.createElement('div');
-		starWidget.style.cssText = `
-			display: flex;
-			align-items: center;
-			gap: 6px;
-			font-size: 11px;
-			color: #ccc;
-			cursor: pointer;
-			margin-bottom: 8px;
-		`;
+        // Star widget (can be hidden)
+        const starWidget = document.createElement('div');
+        starWidget.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: #ccc;
+            cursor: pointer;
+            margin-bottom: 8px;
+        `;
 
-		const starIcon = document.createElement('span');
-		starIcon.textContent = '⭐';
-		starIcon.style.fontSize = '12px';
+        const starIcon = document.createElement('span');
+        starIcon.textContent = '⭐';
+        starIcon.style.fontSize = '12px';
 
-		const starText = document.createElement('span');
-		starText.innerHTML = 'Please consider <span style="color: #ffd700;">giving a star</span> if you find this helpful';
+        const starText = document.createElement('span');
+        starText.innerHTML = 'Please consider <span style="color: #ffd700;">giving a star</span> if you find this helpful';
 
-		starWidget.appendChild(starIcon);
-		starWidget.appendChild(starText);
+        starWidget.appendChild(starIcon);
+        starWidget.appendChild(starText);
 
-		starWidget.onclick = () => {
-			// Open GitHub in new tab
-			window.open('https://github.com/alFrame/ComfyUI-AF-Find-Nodes', '_blank');
-			// Hide only the star widget, not the support section
-			starWidgetSection.style.display = 'none';
-			localStorage.setItem('af-find-nodes-starred', 'true');
-		};
+        starWidget.onclick = () => {
+            // Open GitHub in new tab
+            window.open('https://github.com/alFrame/ComfyUI-AF-Find-Nodes', '_blank');
+            // Hide only the star widget, not the support section
+            starWidgetSection.style.display = 'none';
+            localStorage.setItem('af-find-nodes-starred', 'true');
+        };
 
-		// Support info (always visible)
-		const supportText = document.createElement('div');
-		supportText.innerHTML = '<span style="font-size: 11px; color: #aaa;">If you encounter any issues, please post them <a href="https://github.com/alFrame/ComfyUI-AF-Find-Nodes/issues" target="_blank" style="color: #4da6ff;">here</a></span>';
+        // Support info (always visible)
+        const supportText = document.createElement('div');
+        supportText.innerHTML = '<span style="font-size: 11px; color: #aaa;">If you encounter any issues, please post them <a href="https://github.com/alFrame/ComfyUI-AF-Find-Nodes/issues" target="_blank" style="color: #4da6ff;">here</a></span>';
 
-		// Assemble the sections
-		starWidgetSection.appendChild(starWidget);
-		supportSection.appendChild(supportText);
+        // Assemble the sections
+        starWidgetSection.appendChild(starWidget);
+        supportSection.appendChild(supportText);
 
         // Event listeners
         searchBtn.onclick = () => this.AF_Find_Nodes_Search();
         clearBtn.onclick = () => this.AF_Find_Nodes_ClearAll();
 
-		inspectorBtn.onclick = () => {
-			if (this.currentTab === 'id') {
-				this.AF_Find_Nodes_ToggleInspector();
-			} else {
-				this.AF_Find_Nodes_UpdateResults('Inspector mode is only available in "By ID" tab.', true);
-			}
-		};
-        
+        inspectorBtn.onclick = () => {
+            if (this.currentTab === 'id') {
+                this.AF_Find_Nodes_ToggleInspector();
+            } else {
+                this.AF_Find_Nodes_UpdateResults('Inspector mode is only available in "By ID" tab.', true);
+            }
+        };
+
         searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 this.AF_Find_Nodes_Search();
             }
         });
-		
-		// Add debouncing to the search input
-		searchInput.addEventListener('input', (e) => {
-			// Only auto-search for text-based tabs, not ID tab
-			if (this.currentTab !== 'id') {
-				clearTimeout(this.searchTimeout);
-				this.searchTimeout = setTimeout(() => {
-					if (e.target.value.trim().length >= 2) { // Only search if 2+ characters
-						this.AF_Find_Nodes_Search();
-					}
-				}, 300); // Wait 300ms after typing stops
-			}
-		});
+
+        // Add debouncing to the search input
+        searchInput.addEventListener('input', (e) => {
+            // Only auto-search for text-based tabs, not ID tab
+            if (this.currentTab !== 'id') {
+                clearTimeout(this.searchTimeout);
+                this.searchTimeout = setTimeout(() => {
+                    if (e.target.value.trim().length >= 2) { // Only search if 2+ characters
+                        this.AF_Find_Nodes_Search();
+                    }
+                }, 300); // Wait 300ms after typing stops
+            }
+        });
 
         // Assemble the panel
         buttonRow.appendChild(searchBtn);
         buttonRow.appendChild(clearBtn);
         buttonRow.appendChild(inspectorBtn);
 
-		searchSection.appendChild(tabContainer);
-		searchSection.appendChild(searchInput);
-		searchSection.appendChild(buttonRow);
+        searchSection.appendChild(tabContainer);
+        searchSection.appendChild(searchInput);
+        searchSection.appendChild(buttonRow);
 
-		historySection.appendChild(historyTitle);
-		historySection.appendChild(historyList);
+        historySection.appendChild(historyTitle);
+        historySection.appendChild(historyList);
 
-		panel.appendChild(titleBar);
-		panel.appendChild(searchSection);
-		panel.appendChild(statusSection);
-		panel.appendChild(resultsSection);
-		panel.appendChild(experimentalSection);
-		panel.appendChild(historySection);
-		panel.appendChild(starWidgetSection);
-		panel.appendChild(supportSection);
-		
+        panel.appendChild(titleBar);
+        panel.appendChild(searchSection);
+        panel.appendChild(statusSection);
+        panel.appendChild(resultsSection);
+        panel.appendChild(experimentalSection);
+        panel.appendChild(historySection);
+        panel.appendChild(starWidgetSection);
+        panel.appendChild(supportSection);
+
         document.body.appendChild(panel);
         this.searchPanel = panel;
 
@@ -513,181 +528,200 @@ class AF_Find_Nodes_Widget {
         this.AF_Find_Nodes_UpdateResults('Ready to search. Enter a node ID or use Inspector mode.');
     }
 
-switchTab(tabId) {
-    if ((tabId === 'pack' || tabId === 'type') && !this.experimentalEnabled) {
-        this.AF_Find_Nodes_UpdateResults('Experimental features are disabled. Enable them below.', true);
-        return;
+    switchTab(tabId) {
+        if ((tabId === 'pack' || tabId === 'type') && !this.experimentalEnabled) {
+            this.AF_Find_Nodes_UpdateResults('Experimental features are disabled. Enable them below.', true);
+            return;
+        }
+        this.currentTab = tabId;
+
+        // Save to localStorage
+        localStorage.setItem('af-find-node-last-tab', tabId);
+
+        // Update tab buttons
+        this.updateTabAppearance();
+
+        // Update input placeholder
+        const tabConfig = this.tabs.find(t => t.id === tabId);
+        this.tabInputs.main.placeholder = tabConfig.placeholder;
+
+        // Show/hide inspector button based on tab
+        this.updateInspectorButtonVisibility();
+
+        // Hide search input and entire button row for stats/updates tabs
+        const searchInput = document.getElementById('af-find-nodes-input');
+        const buttonRow = searchInput?.nextElementSibling; // The div containing Find/Clear/Inspector buttons
+
+        if (tabId === 'stats' || tabId === 'updates') {
+            if (searchInput) searchInput.style.display = 'none';
+            if (buttonRow) buttonRow.style.display = 'none';
+        } else {
+            if (searchInput) searchInput.style.display = 'block';
+            if (buttonRow) buttonRow.style.display = 'flex';
+            // Update inspector button visibility for other tabs
+            this.updateInspectorButtonVisibility();
+        }
+
+        // Clear previous results, input, and highlight (but not for stats/updates)
+        if (tabId !== 'stats' && tabId !== 'updates') {
+            this.tabInputs.main.value = '';
+            this.AF_Find_Nodes_ClearHighlight();
+        }
+
+        // Handle tab-specific content
+        if (tabId === 'stats') {
+            this.showWorkflowStats();
+            this.AF_Find_Nodes_UpdateResults('Workflow statistics loaded.');
+        } else if (tabId === 'updates') {
+            this.showUpdatesTab();
+            this.AF_Find_Nodes_UpdateResults('Ready to scan for node updates.');
+        } else {
+            this.showResultsList([], '');  // Clear the results list
+            this.AF_Find_Nodes_UpdateResults(`Switched to ${tabConfig.name} search. Ready to search.`);
+        }
+
+        // Update history for current tab (not for stats)
+        if (tabId !== 'stats' && tabId !== 'updates') {
+            this.AF_Find_Nodes_UpdateHistory();
+        }
+
+        // Hide/show history section - find the parent div that contains both title and list
+        const historyList = document.getElementById('af-find-nodes-history');
+        if (historyList && historyList.parentElement) {
+            historyList.parentElement.style.display = (tabId === 'stats' || tabId === 'updates') ? 'none' : 'block';
+        }
     }
-    this.currentTab = tabId;
 
-    // Save to localStorage
-    localStorage.setItem('af-find-node-last-tab', tabId);
+    showWorkflowStats() {
+        // Ensure we have scanned data
+        this.scanWorkflowForPacks();
 
-    // Update tab buttons
-    this.updateTabAppearance();
+        const totalNodes = app.graph?.nodes?.length || 0;
+        const packCount = Object.keys(this.workflowPackIndex).length;
+        const typeCount = Object.keys(this.workflowTypeIndex).length;
 
-    // Update input placeholder
-    const tabConfig = this.tabs.find(t => t.id === tabId);
-    this.tabInputs.main.placeholder = tabConfig.placeholder;
+        // Organize packs by node count
+        const allPacks = Object.entries(this.workflowPackIndex)
+            .map(([pack, nodeIds]) => ({
+                pack,
+                count: nodeIds.length,
+                percentage: Math.round((nodeIds.length / totalNodes) * 100),
+                isCore: pack === 'Core' || pack.toLowerCase().includes('core'),
+                nodeIds: nodeIds
+            }));
 
-    // Show/hide inspector button based on tab
-    this.updateInspectorButtonVisibility();
+        const corePacks = allPacks.filter(p => p.isCore);
+        const customPacks = allPacks.filter(p => !p.isCore);
+        const sortedCustomPacks = customPacks.sort((a, b) => b.count - a.count);
+        const sortedAllPacks = [...sortedCustomPacks, ...corePacks];
 
-    // Hide search input and buttons for stats tab
-    const searchInput = document.getElementById('af-find-nodes-input');
-    const searchBtn = document.querySelector('#af-find-nodes-panel button[onclick*="AF_Find_Nodes_Search"]');
-    const clearBtn = document.querySelector('#af-find-nodes-panel button[onclick*="AF_Find_Nodes_ClearAll"]');
+        // Build stats HTML
+        let statsHTML = `
+            <div style="padding: 8px;">
+                <div style="color: #4CAF50; margin-bottom: 15px; font-size: 12px; font-weight: bold;">
+                    📊 Workflow Statistics
+                </div>
 
-    if (tabId === 'stats') {
-        if (searchInput) searchInput.style.display = 'none';
-        if (searchBtn) searchBtn.style.display = 'none';
-        if (clearBtn) clearBtn.style.display = 'none';
-    } else {
-        if (searchInput) searchInput.style.display = 'block';
-        if (searchBtn) searchBtn.style.display = 'block';
-        if (clearBtn) clearBtn.style.display = 'block';
-    }
+                <div style="background: #2a2a2a; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #4CAF50;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Total Nodes:</span>
+                        <span style="color: #ff9800; font-weight: bold;">${totalNodes}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Unique Packs:</span>
+                        <span style="color: #ff9800; font-weight: bold;">${packCount}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Custom Packs:</span>
+                        <span style="color: #ff9800; font-weight: bold;">${customPacks.length}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Unique Node Types:</span>
+                        <span style="color: #ff9800; font-weight: bold;">${typeCount}</span>
+                    </div>
+                </div>
 
-    // Clear previous results, input, and highlight
-    this.tabInputs.main.value = '';
-    this.AF_Find_Nodes_ClearHighlight();
+                <!-- Quick Export Buttons -->
+                <div style="margin-bottom: 15px; padding: 10px; background: #1a2a3a; border-radius: 6px; border: 1px solid #444;">
+                    <div style="color: #aaa; margin-bottom: 8px; font-size: 11px; text-align: center;">
+                        ⚡ Quick Export
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                        <button onclick="window.AF_Find_Nodes_Widget.exportPackList()"
+                                style="flex: 1; padding: 8px; background: #7a4a1a; border: none;
+                                       border-radius: 4px; color: white; cursor: pointer; font-size: 11px;">
+                            📋 Packs
+                        </button>
+                        <button onclick="window.AF_Find_Nodes_Widget.copyNodeTypes(false)"
+                                style="flex: 1; padding: 8px; background: #2a4a7a; border: none;
+                                       border-radius: 4px; color: white; cursor: pointer; font-size: 11px;">
+                            📝 Types
+                        </button>
+                        <button onclick="window.AF_Find_Nodes_Widget.copyNodeTypes(true)"
+                                style="flex: 1; padding: 8px; background: #3a2a5a; border: none;
+                                       border-radius: 4px; color: white; cursor: pointer; font-size: 11px;">
+                            📝 All
+                        </button>
+                    </div>
+                    <div style="font-size: 10px; color: #666; text-align: center; margin-top: 4px;">
+                        Copy lists for documentation
+                    </div>
+                </div>
 
-    // Handle tab-specific content
-    if (tabId === 'stats') {
-        this.showWorkflowStats();
-        this.AF_Find_Nodes_UpdateResults('Workflow statistics loaded.');
-    } else {
-        this.showResultsList([], '');  // Clear the results list
-        this.AF_Find_Nodes_UpdateResults(`Switched to ${tabConfig.name} search. Ready to search.`);
-    }
-
-    // Update history for current tab (not for stats)
-    if (tabId !== 'stats') {
-        this.AF_Find_Nodes_UpdateHistory();
-    }
-}
-
-showWorkflowStats() {
-    // Ensure we have scanned data
-    this.scanWorkflowForPacks();
-
-    const totalNodes = app.graph?.nodes?.length || 0;
-    const packCount = Object.keys(this.workflowPackIndex).length;
-    const typeCount = Object.keys(this.workflowTypeIndex).length;
-
-    // Separate core packs from custom packs
-    const allPacks = Object.entries(this.workflowPackIndex)
-        .map(([pack, nodeIds]) => ({
-            pack,
-            count: nodeIds.length,
-            percentage: Math.round((nodeIds.length / totalNodes) * 100),
-            isCore: pack === 'Core' || pack.toLowerCase().includes('core')
-        }));
-
-    const corePacks = allPacks.filter(p => p.isCore);
-    const customPacks = allPacks.filter(p => !p.isCore);
-    const sortedCustomPacks = customPacks.sort((a, b) => b.count - a.count);
-    const sortedAllPacks = [...sortedCustomPacks, ...corePacks];
-
-    // Build stats HTML without nested scroll containers
-    let statsHTML = `
-        <div style="color: #4CAF50; margin-bottom: 15px; font-size: 12px; font-weight: bold;">
-            📊 Workflow Statistics
-        </div>
-
-        <div style="background: #2a2a2a; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #4CAF50;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span>Total Nodes:</span>
-                <span style="color: #ff9800; font-weight: bold;">${totalNodes}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span>Unique Packs:</span>
-                <span style="color: #ff9800; font-weight: bold;">${packCount}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span>Custom Packs:</span>
-                <span style="color: #ff9800; font-weight: bold;">${customPacks.length}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-                <span>Unique Node Types:</span>
-                <span style="color: #ff9800; font-weight: bold;">${typeCount}</span>
-            </div>
-        </div>
-
-        <!-- Quick Export Buttons at the Top -->
-        <div style="margin-bottom: 15px; padding: 10px; background: #1a2a3a; border-radius: 6px; border: 1px solid #444;">
-            <div style="color: #aaa; margin-bottom: 8px; font-size: 11px; text-align: center;">
-                ⚡ Quick Export
-            </div>
-            <div style="display: flex; gap: 8px; margin-bottom: 6px;">
-                <button onclick="window.AF_Find_Nodes_Widget.exportPackList()"
-                        style="flex: 1; padding: 8px; background: #7a4a1a; border: none;
-                               border-radius: 4px; color: white; cursor: pointer; font-size: 11px;
-                               display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    📋 Packs
-                </button>
-                <button onclick="window.AF_Find_Nodes_Widget.copyNodeTypes(false)"
-                        style="flex: 1; padding: 8px; background: #2a4a7a; border: none;
-                               border-radius: 4px; color: white; cursor: pointer; font-size: 11px;
-                               display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    📝 Filtered Types
-                </button>
-                <button onclick="window.AF_Find_Nodes_Widget.copyNodeTypes(true)"
-                        style="flex: 1; padding: 8px; background: #3a2a5a; border: none;
-                               border-radius: 4px; color: white; cursor: pointer; font-size: 11px;
-                               display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    📝 All Types
-                </button>
-            </div>
-            <div style="font-size: 10px; color: #666; text-align: center; margin-top: 4px;">
-                Copy lists for documentation or cleanup
-            </div>
-        </div>
-    `;
-
-    // Show ALL packs - LIMIT height on this section only
-    if (sortedAllPacks.length > 0) {
-        statsHTML += `
-            <div style="color: #aaa; margin-bottom: 10px; font-size: 11px; border-bottom: 1px solid #444; padding-bottom: 5px;">
-                📦 All Node Packs (${sortedAllPacks.length})
+                <div style="color: #aaa; margin-bottom: 10px; font-size: 11px; border-bottom: 1px solid #444; padding-bottom: 5px;">
+                    📦 Node Packs (${sortedAllPacks.length}) - Click to expand
+                </div>
             </div>
 
-            <!-- Single scroll container for packs list -->
-            <div style="max-height: 600px; overflow-y: auto; background: #1a1a1a; border-radius: 4px; padding: 6px; margin-bottom: 15px; border: 1px solid #333;">
+            <!-- Scrollable pack list -->
+            <div style="max-height: 500px; overflow-y: auto; padding: 0 8px 8px 8px;">
         `;
 
-        sortedAllPacks.forEach(({ pack, count, percentage, isCore }, index) => {
-            let packColor = '#ccc';
-            let countColor = '#4CAF50';
-            let borderColor = '#444';
-
-            if (isCore) {
-                packColor = '#4da6ff';
-                countColor = '#4da6ff';
-                borderColor = '#2196F3';
-            } else if (count <= 2) {
-                packColor = '#8BC34A';
-                countColor = '#8BC34A';
-                borderColor = '#8BC34A';
-            }
+        // Build collapsible pack list
+        sortedAllPacks.forEach(({ pack, count, percentage, isCore, nodeIds }) => {
+            const isCollapsed = this.collapsedStatsPacks ? !this.collapsedStatsPacks.has(pack) : true;
 
             statsHTML += `
-                <div style="display: flex; justify-content: space-between; align-items: center;
-                            padding: 8px 10px; margin: 3px 0; background: #222;
-                            border-radius: 4px; border-left: 3px solid ${borderColor};">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 10px; color: #666; min-width: 20px; text-align: center;">${index + 1}</span>
-                        <span style="font-size: 11px; color: ${packColor};">
-                            ${pack} ${isCore ? '🔧' : ''}
-                        </span>
+                <div style="margin-bottom: 8px; border: 1px solid ${isCore ? '#2196F3' : '#444'}; border-radius: 4px; overflow: hidden;">
+                    <div onclick="window.AF_Find_Nodes_Widget.toggleStatsPackCollapse('${pack.replace(/'/g, "\\'")}')"
+                         style="background: ${isCore ? '#2a3a4a' : '#2a2a2a'}; padding: 10px; cursor: pointer;
+                                display: flex; justify-content: space-between; align-items: center;
+                                border-bottom: ${isCollapsed ? 'none' : '1px solid #444'};">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 12px;">${isCollapsed ? '▶' : '▼'}</span>
+                            <span style="color: ${isCore ? '#4da6ff' : '#ccc'}; font-weight: bold;">
+                                📦 ${pack} ${isCore ? '🔧' : ''}
+                            </span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 11px; color: #4CAF50;">
+                                ${count} node${count !== 1 ? 's' : ''}
+                            </span>
+                            <span style="font-size: 10px; color: #666;">
+                                ${percentage}%
+                            </span>
+                        </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="font-size: 11px; color: ${countColor};">
-                            ${count} node${count !== 1 ? 's' : ''}
-                        </span>
-                        <span style="font-size: 10px; color: #666; min-width: 40px; text-align: right;">
-                            ${percentage}%
-                        </span>
+                    <div id="af-stats-pack-${pack.replace(/\s/g, '-').replace(/'/g, '')}"
+                         style="display: ${isCollapsed ? 'none' : 'block'}; background: #1a1a1a;">
+            `;
+
+            // Add nodes for this pack
+            nodeIds.forEach(nodeId => {
+                const node = this.AF_Find_Nodes_FindNodeById(nodeId);
+                if (node) {
+                    statsHTML += `
+                        <div style="padding: 6px 12px; border-bottom: 1px solid #333; font-size: 11px; cursor: pointer;"
+                             onclick="window.AF_Find_Nodes_Widget.selectAndCenterNode(${nodeId})">
+                            <span style="color: #4da6ff;">[${nodeId}]</span>
+                            <span style="color: #ccc;"> ${node.type}</span>
+                            ${node.title ? `<span style="color: #888; font-size: 10px;"> - ${node.title}</span>` : ''}
+                        </div>
+                    `;
+                }
+            });
+
+            statsHTML += `
                     </div>
                 </div>
             `;
@@ -695,99 +729,573 @@ showWorkflowStats() {
 
         statsHTML += `</div>`;
 
-        // Cleanup opportunity - NO scroll here
-        const lowUsagePacks = sortedAllPacks.filter(p => p.count <= 2 && !p.isCore);
-        if (lowUsagePacks.length > 0) {
-            statsHTML += `
-                <div style="background: #223322; border: 1px solid #4CAF50; border-radius: 6px; padding: 10px; margin-bottom: 15px;">
-                    <div style="color: #8BC34A; font-size: 11px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                        💡 Cleanup Opportunity
-                    </div>
-                    <div style="font-size: 10px; color: #ccc; margin-bottom: 6px;">
-                        Packs with only 1-2 nodes (${lowUsagePacks.length}):
-                    </div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-            `;
+        const results = document.getElementById('af-find-nodes-results');
+        results.innerHTML = statsHTML;
+    }
 
-            lowUsagePacks.forEach(({ pack, count }) => {
-                statsHTML += `
-                    <span style="background: #4CAF5022; color: #8BC34A; padding: 3px 8px; border-radius: 3px; font-size: 10px;">
-                        ${pack} (${count})
-                    </span>
-                `;
-            });
-
-            statsHTML += `
-                </div>
-                <div style="font-size: 10px; color: #8BC34A; margin-top: 8px; font-style: italic; line-height: 1.3;">
-                    PRO TIP: Consider removing these packs, or check for nodes with the same functionality
-                </div>
-            </div>
-            `;
+    // Add method to track collapsed packs for stats tab
+    toggleStatsPackCollapse(pack) {
+        if (!this.collapsedStatsPacks) {
+            this.collapsedStatsPacks = new Set();
         }
 
-        // Pack distribution chart - NO scroll
-        if (sortedAllPacks.length > 0) {
-            statsHTML += `
-                <div style="color: #aaa; margin-bottom: 8px; font-size: 11px; border-bottom: 1px solid #444; padding-bottom: 5px;">
-                    📈 Pack Distribution
-                </div>
-                <div style="background: #1a1a1a; border-radius: 4px; padding: 10px; margin-bottom: 15px;">
-            `;
+        if (this.collapsedStatsPacks.has(pack)) {
+            this.collapsedStatsPacks.delete(pack);
+        } else {
+            this.collapsedStatsPacks.add(pack);
+        }
+        this.showWorkflowStats();
+    }
 
-            const topPacks = sortedAllPacks.slice(0, 5);
-            const maxCount = topPacks[0]?.count || 1;
-
-            topPacks.forEach(({ pack, count }) => {
-                const barWidth = Math.max((count / maxCount) * 100, 3);
-                statsHTML += `
-                    <div style="margin-bottom: 6px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
-                            <span style="font-size: 10px; color: #ccc;">${pack}</span>
-                            <span style="font-size: 10px; color: #4CAF50;">${count}</span>
-                        </div>
-                        <div style="width: 100%; height: 6px; background: #333; border-radius: 3px; overflow: hidden;">
-                            <div style="width: ${barWidth}%; height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); border-radius: 3px;"></div>
-                        </div>
-                    </div>
-                `;
-            });
-
-            statsHTML += `
-                    <div style="font-size: 10px; color: #666; text-align: center; margin-top: 8px;">
-                        Top 5 packs by node count
-                    </div>
-                </div>
-            `;
+    // Add method for selecting and centering nodes (reusable)
+    selectAndCenterNode(nodeId) {
+        const node = this.AF_Find_Nodes_FindNodeById(nodeId);
+        if (node) {
+            app.canvas.deselectAllNodes();
+            node.is_selected = true;
+            app.canvas.selectNode(node);
+            this.AF_Find_Nodes_CenterOnNode(node);
         }
     }
 
-    // Node Types Summary - NO scroll
-    statsHTML += `
-        <div style="color: #aaa; margin-bottom: 8px; font-size: 11px; border-bottom: 1px solid #444; padding-bottom: 5px;">
-            🔧 Node Types Overview
-        </div>
-        <div style="background: #1a2a3a; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                <span style="font-size: 10px; color: #ccc;">Total Unique Types:</span>
-                <span style="font-size: 10px; color: #4da6ff;">${typeCount}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                <span style="font-size: 10px; color: #ccc;">UUID Types:</span>
-                <span style="font-size: 10px; color: ${Object.keys(this.workflowTypeIndex).filter(t => this.isUUID(t)).length > 0 ? '#ff9800' : '#4CAF50'}">
-                    ${Object.keys(this.workflowTypeIndex).filter(t => this.isUUID(t)).length}
-                </span>
-            </div>
-            <div style="font-size: 9px; color: #666; margin-top: 8px; text-align: center;">
-                Use export buttons above to copy detailed lists
-            </div>
-        </div>
-    `;
+    // ========== UPDATES TAB ==========
 
-    const results = document.getElementById('af-find-nodes-results');
-    // NO nested scroll container - just set the HTML directly
-    results.innerHTML = statsHTML;
-}
+    showUpdatesTab() {
+        const results = document.getElementById('af-find-nodes-results');
+
+        // Set overflow to hidden since we'll manage scroll internally
+        results.style.overflow = 'hidden';
+        results.style.display = 'flex';
+        results.style.flexDirection = 'column';
+        results.style.padding = '0';
+
+        let html = `
+            <!-- Fixed header section (non-scrollable) -->
+            <div style="padding: 8px; flex-shrink: 0;">
+                <div style="color: #4CAF50; margin-bottom: 15px; font-size: 12px; font-weight: bold;">
+                    🔄 Node Version Updates
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <button onclick="window.AF_Find_Nodes_Widget.performUpdateScan()"
+                            style="width: 100%; padding: 10px; background: #4CAF50; border: none;
+                                   border-radius: 4px; color: white; cursor: pointer; font-size: 12px;
+                                   font-weight: bold;">
+                        🔍 Scan for Updates
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scrollable results container -->
+            <div id="af-updates-scan-results" style="flex: 1; overflow-y: auto; padding: 0 8px 8px 8px;">
+                <div style="min-height: 100px; color: #aaa; text-align: center; padding: 20px;">
+                    Click "Scan for Updates" to check for node version updates in your workflow.
+                </div>
+            </div>
+        `;
+
+        results.innerHTML = html;
+    }
+
+    performUpdateScan() {
+        const resultsContainer = document.getElementById('af-updates-scan-results');
+        resultsContainer.innerHTML = '<div style="color: #ff9800; padding: 20px;">⏳ Scanning workflow...</div>';
+
+        setTimeout(() => {
+            this.updateableNodes = this.scanForUpdates();
+            this.selectedUpdates.clear();
+
+            if (this.updateableNodes.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div style="color: #4CAF50; padding: 20px;">
+                        ✅ All nodes are up to date!<br>
+                        <span style="font-size: 10px; color: #888;">No updates found.</span>
+                    </div>
+                `;
+                this.AF_Find_Nodes_UpdateResults('✅ No updates found - all nodes are current.');
+                return;
+            }
+
+            this.displayUpdateableNodes();
+            this.AF_Find_Nodes_UpdateResults(`Found ${this.updateableNodes.length} node(s) with available updates.`);
+        }, 100);
+    }
+
+    displayUpdateableNodes() {
+        const byPack = {};
+        this.updateableNodes.forEach(nodeInfo => {
+            if (!byPack[nodeInfo.pack]) {
+                byPack[nodeInfo.pack] = [];
+            }
+            byPack[nodeInfo.pack].push(nodeInfo);
+        });
+
+        // Get both containers
+        const mainResults = document.getElementById('af-find-nodes-results');
+        const scrollContainer = document.getElementById('af-updates-scan-results');
+
+        // Build the fixed header content (goes in main results, above scroll)
+        let fixedHeaderHTML = `
+            <div style="padding: 0 8px; flex-shrink: 0;">
+                <div style="background: #2a2a2a; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #ff9800;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Updates Available:</span>
+                        <span style="color: #ff9800; font-weight: bold;">${this.updateableNodes.length} node(s)</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Affected Packs:</span>
+                        <span style="color: #ff9800; font-weight: bold;">${Object.keys(byPack).length}</span>
+                    </div>
+                </div>
+
+                <div style="background: #2a3a2a; border: 1px solid #4CAF50; border-radius: 6px; padding: 10px; margin-bottom: 15px;">
+                    <div style="color: #4CAF50; font-size: 11px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                        ⚠️ Backup Options
+                    </div>
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11px;">
+                        <input type="checkbox" id="af-auto-backup-checkbox"
+                               ${this.autoBackupEnabled ? 'checked' : ''}
+                               onchange="window.AF_Find_Nodes_Widget.toggleAutoBackup(this.checked)"
+                               style="margin: 0;">
+                        <span>Auto-backup before updating (recommended)</span>
+                    </label>
+                    <button onclick="window.AF_Find_Nodes_Widget.createManualBackup()"
+                            style="width: 100%; margin-top: 8px; padding: 6px; background: #4CAF50; border: none;
+                                   border-radius: 4px; color: white; cursor: pointer; font-size: 10px;">
+                        💾 Create Backup Now
+                    </button>
+                </div>
+
+                <div style="margin-bottom: 15px; padding: 10px; background: #1a2a3a; border-radius: 6px; border: 1px solid #444;">
+                    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                        <button onclick="window.AF_Find_Nodes_Widget.selectAllUpdates()"
+                                style="flex: 1; padding: 8px; background: #2a4a7a; border: none;
+                                       border-radius: 4px; color: white; cursor: pointer; font-size: 11px;">
+                            ✓ Select All
+                        </button>
+                        <button onclick="window.AF_Find_Nodes_Widget.deselectAllUpdates()"
+                                style="flex: 1; padding: 8px; background: #666; border: none;
+                                       border-radius: 4px; color: white; cursor: pointer; font-size: 11px;">
+                            ✗ Deselect All
+                        </button>
+                    </div>
+                    <button onclick="window.AF_Find_Nodes_Widget.applySelectedUpdates()"
+                            id="af-apply-updates-btn"
+                            style="width: 100%; padding: 10px; background: #ff9800; border: none;
+                                   border-radius: 4px; color: white; cursor: pointer; font-size: 12px;
+                                   font-weight: bold;">
+                        📥 Update Selected Nodes (0)
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Build the scrollable node list
+        let nodesHTML = '';
+
+        const sortedPacks = Object.keys(byPack).sort();
+        const coreIndex = sortedPacks.indexOf('Core');
+        if (coreIndex > -1) {
+            sortedPacks.splice(coreIndex, 1);
+            sortedPacks.push('Core');
+        }
+
+        sortedPacks.forEach(pack => {
+            const nodes = byPack[pack];
+            const isCollapsed = this.collapsedPacks.has(pack);
+            const isCore = pack === 'Core';
+
+            nodesHTML += `
+                <div style="margin-bottom: 8px; border: 1px solid ${isCore ? '#ff6b6b' : '#444'}; border-radius: 4px; overflow: hidden;">
+                    <div onclick="window.AF_Find_Nodes_Widget.togglePackCollapse('${pack}')"
+                         style="background: ${isCore ? '#3a2a2a' : '#2a2a2a'}; padding: 10px; cursor: pointer;
+                                display: flex; justify-content: space-between; align-items: center;
+                                border-bottom: ${isCollapsed ? 'none' : '1px solid #444'};">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 12px;">${isCollapsed ? '▶' : '▼'}</span>
+                            <input type="checkbox"
+                                   onchange="window.AF_Find_Nodes_Widget.togglePackSelection('${pack}', this.checked)"
+                                   onclick="event.stopPropagation()"
+                                   style="margin: 0;">
+                            <span style="color: ${isCore ? '#ff6b6b' : '#ccc'}; font-weight: bold;">
+                                📦 ${pack} ${isCore ? '⚠️' : ''}
+                            </span>
+                        </div>
+                        <span style="color: #ff9800; font-size: 11px;">${nodes.length} update(s)</span>
+                    </div>
+                    <div id="af-pack-${pack.replace(/\s/g, '-')}"
+                         style="display: ${isCollapsed ? 'none' : 'block'}; background: #1a1a1a;">
+            `;
+
+            nodes.forEach(nodeInfo => {
+                const statusColor = this.getUpdateStatusColor(nodeInfo.category);
+                const statusText = this.getUpdateStatusText(nodeInfo.category);
+                const versionDisplay = this.formatVersionDisplay(nodeInfo.workflow, nodeInfo.installed);
+
+                nodesHTML += `
+                    <div style="padding: 8px 12px; border-bottom: 1px solid #333; font-size: 11px;"
+                         onclick="window.AF_Find_Nodes_Widget.highlightUpdateNode(${nodeInfo.nodeId})">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <input type="checkbox"
+                                   id="af-update-${nodeInfo.nodeId}"
+                                   onchange="window.AF_Find_Nodes_Widget.toggleNodeSelection(${nodeInfo.nodeId}, this.checked)"
+                                   onclick="event.stopPropagation()"
+                                   style="margin: 0;">
+                            <span style="color: #4da6ff; cursor: pointer;">[${nodeInfo.nodeId}] ${nodeInfo.type}</span>
+                        </div>
+                        <div style="margin-left: 24px; font-size: 10px; color: #aaa;">
+                            ${nodeInfo.title}
+                        </div>
+                        <div style="margin-left: 24px; margin-top: 4px; font-size: 10px;">
+                            ${versionDisplay}
+                        </div>
+                        <div style="margin-left: 24px; margin-top: 2px; font-size: 9px; color: ${statusColor};">
+                            Status: ${statusText}
+                        </div>
+                    </div>
+                `;
+            });
+
+            nodesHTML += `
+                    </div>
+                </div>
+            `;
+        });
+
+        const coreNodes = byPack['Core'];
+        if (coreNodes && coreNodes.length > 0) {
+            nodesHTML += `
+                <div style="background: #3a2a2a; border: 1px solid #ff6b6b; border-radius: 6px; padding: 10px; margin-top: 15px; margin-bottom: 15px;">
+                    <div style="color: #ff6b6b; font-size: 11px; margin-bottom: 6px; font-weight: bold;">
+                        ⚠️ Core ComfyUI Nodes Warning
+                    </div>
+                    <div style="font-size: 10px; color: #ccc; line-height: 1.4;">
+                        ${coreNodes.length} Core ComfyUI node(s) will be updated.
+                        This may affect workflow compatibility. Backup recommended.
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update the display: Remove any existing fixed headers first
+        const existingFixedHeaders = mainResults.querySelectorAll('div[style*="flex-shrink: 0"]');
+        existingFixedHeaders.forEach((header, index) => {
+            if (index > 0) header.remove(); // Keep first one (scan button), remove duplicates
+        });
+
+        // Now insert/update the fixed header
+        const scanButton = mainResults.querySelector('div[style*="flex-shrink: 0"]');
+        if (scanButton && scrollContainer) {
+            // Remove existing fixed header if present
+            const nextDiv = scanButton.nextElementSibling;
+            if (nextDiv && nextDiv !== scrollContainer) {
+                nextDiv.remove();
+            }
+            scanButton.insertAdjacentHTML('afterend', fixedHeaderHTML);
+            scrollContainer.innerHTML = nodesHTML;
+        }
+    }
+
+    getUpdateStatusColor(category) {
+        switch(category) {
+            case 'newer': return '#4CAF50';
+            case 'format-changed': return '#ff9800';
+            case 'hash-changed': return '#ff9800';
+            default: return '#888';
+        }
+    }
+
+    getUpdateStatusText(category) {
+        switch(category) {
+            case 'newer': return '✅ Update available (semantic version)';
+            case 'format-changed': return '⚠️ Version format changed - review recommended';
+            case 'hash-changed': return '⚠️ Git hash changed - review recommended';
+            default: return '❓ Unable to determine version relationship';
+        }
+    }
+
+    formatVersionDisplay(workflow, installed) {
+        const truncate = (str, len = 12) => {
+            if (str.length <= len) return str;
+            return str.substring(0, len) + '...';
+        };
+
+        return `
+            <span style="color: #888;">Workflow:</span>
+            <span style="color: #ff6b6b;">${truncate(workflow)}</span>
+            <span style="color: #888;"> → </span>
+            <span style="color: #888;">Installed:</span>
+            <span style="color: #4CAF50;">${truncate(installed)} ⬆️</span>
+        `;
+    }
+
+    togglePackCollapse(packName) {
+            if (this.collapsedPacks.has(packName)) {
+                this.collapsedPacks.delete(packName);
+            } else {
+                this.collapsedPacks.add(packName);
+            }
+            this.displayUpdateableNodes();
+        }
+
+        togglePackSelection(packName, checked) {
+            const nodes = this.updateableNodes.filter(n => n.pack === packName);
+            nodes.forEach(nodeInfo => {
+                if (checked) {
+                    this.selectedUpdates.add(nodeInfo.nodeId);
+                } else {
+                    this.selectedUpdates.delete(nodeInfo.nodeId);
+                }
+                const checkbox = document.getElementById(`af-update-${nodeInfo.nodeId}`);
+                if (checkbox) checkbox.checked = checked;
+            });
+            this.updateApplyButton();
+        }
+
+        toggleNodeSelection(nodeId, checked) {
+            if (checked) {
+                this.selectedUpdates.add(nodeId);
+            } else {
+                this.selectedUpdates.delete(nodeId);
+            }
+            this.updateApplyButton();
+        }
+
+        selectAllUpdates() {
+            this.updateableNodes.forEach(nodeInfo => {
+                this.selectedUpdates.add(nodeInfo.nodeId);
+                const checkbox = document.getElementById(`af-update-${nodeInfo.nodeId}`);
+                if (checkbox) checkbox.checked = true;
+            });
+            this.updateApplyButton();
+        }
+
+        deselectAllUpdates() {
+            this.selectedUpdates.clear();
+            this.updateableNodes.forEach(nodeInfo => {
+                const checkbox = document.getElementById(`af-update-${nodeInfo.nodeId}`);
+                if (checkbox) checkbox.checked = false;
+            });
+            this.updateApplyButton();
+        }
+
+        updateApplyButton() {
+            const btn = document.getElementById('af-apply-updates-btn');
+            if (btn) {
+                const count = this.selectedUpdates.size;
+                btn.textContent = `📥 Update Selected Nodes (${count})`;
+                btn.style.opacity = count > 0 ? '1' : '0.5';
+                btn.style.cursor = count > 0 ? 'pointer' : 'not-allowed';
+            }
+        }
+
+        highlightUpdateNode(nodeId) {
+            const node = this.AF_Find_Nodes_FindNodeById(nodeId);
+            if (node) {
+                // Clear existing selection and select this node
+                app.canvas.deselectAllNodes();
+                node.is_selected = true;
+                app.canvas.selectNode(node);
+                this.AF_Find_Nodes_CenterOnNode(node);
+            }
+        }
+
+        toggleAutoBackup(enabled) {
+            this.autoBackupEnabled = enabled;
+            localStorage.setItem('af-find-node-auto-backup', enabled.toString());
+        }
+
+        createManualBackup() {
+            this.AF_Find_Nodes_UpdateResults('💾 Creating backup...', false);
+
+            try {
+                const workflow = app.graph.serialize();
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T');
+                const filename = `workflow_backup_${timestamp[0]}_${timestamp[1].split('.')[0]}.json`;
+
+                const blob = new Blob([JSON.stringify(workflow, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                this.AF_Find_Nodes_UpdateResults(`✅ Backup created: ${filename}`, false);
+            } catch (error) {
+                console.error('Backup failed:', error);
+                this.AF_Find_Nodes_UpdateResults('❌ Failed to create backup. Check console.', true);
+            }
+        }
+
+        async applySelectedUpdates() {
+            if (this.selectedUpdates.size === 0) {
+                this.AF_Find_Nodes_UpdateResults('No nodes selected for update.', true);
+                return;
+            }
+
+            if (this.autoBackupEnabled) {
+                this.AF_Find_Nodes_UpdateResults('💾 Creating backup before updates...', false);
+                this.createManualBackup();
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            const count = this.selectedUpdates.size;
+            if (!confirm(`Update ${count} node(s)?\n\nThis will recreate the selected nodes with the latest versions.\nConnections and values will be preserved where possible.`)) {
+                return;
+            }
+
+            this.AF_Find_Nodes_UpdateResults(`⏳ Updating ${count} node(s)...`, false);
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const nodeId of this.selectedUpdates) {
+                try {
+                    const success = await this.recreateNode(nodeId);
+                    if (success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                    }
+                } catch (error) {
+                    console.error(`Failed to update node ${nodeId}:`, error);
+                    failCount++;
+                }
+            }
+
+            if (failCount === 0) {
+                this.AF_Find_Nodes_UpdateResults(`✅ Successfully updated ${successCount} node(s)!`, false);
+            } else {
+                this.AF_Find_Nodes_UpdateResults(`⚠️ Updated ${successCount}, failed ${failCount}. Check console.`, true);
+            }
+
+            // Clear selection after updates
+            app.canvas.deselectAllNodes();
+
+            setTimeout(() => {
+                this.performUpdateScan();
+            }, 1000);
+        }
+
+        async recreateNode(nodeId) {
+            const node = this.AF_Find_Nodes_FindNodeById(nodeId);
+            if (!node) {
+                console.error(`Node ${nodeId} not found`);
+                return false;
+            }
+
+            try {
+                const nodeState = {
+                    id: node.id,
+                    type: node.type,
+                    pos: [...node.pos],
+                    size: [...node.size],
+                    title: node.title,
+                    color: node.color,
+                    bgcolor: node.bgcolor,
+                    mode: node.mode,
+                    flags: {...node.flags},
+                                widgets_values: node.widgets_values ? [...node.widgets_values] : [],
+                                inputs: node.inputs ? node.inputs.map(input => ({
+                                    name: input.name,
+                                    type: input.type,
+                                    link: input.link
+                                })) : [],
+                                outputs: node.outputs ? node.outputs.map(output => ({
+                                    name: output.name,
+                                    type: output.type,
+                                    links: output.links ? [...output.links] : []
+                                })) : []
+                            };
+
+                            const inputLinks = [];
+                            if (node.inputs) {
+                                node.inputs.forEach((input, idx) => {
+                                    if (input.link != null) {
+                                        const link = app.graph.links[input.link];
+                                        if (link) {
+                                            inputLinks.push({
+                                                targetSlot: idx,
+                                                originNode: link.origin_id,
+                                                originSlot: link.origin_slot
+                                            });
+                                        }
+                                    }
+                                });
+                            }
+
+                            const outputLinks = [];
+                            if (node.outputs) {
+                                node.outputs.forEach((output, idx) => {
+                                    if (output.links && output.links.length > 0) {
+                                        output.links.forEach(linkId => {
+                                            const link = app.graph.links[linkId];
+                                            if (link) {
+                                                outputLinks.push({
+                                                    originSlot: idx,
+                                                    targetNode: link.target_id,
+                                                    targetSlot: link.target_slot
+                                                });
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+
+                            app.graph.remove(node);
+
+                            const newNode = LiteGraph.createNode(nodeState.type);
+                            if (!newNode) {
+                                console.error(`Failed to create node of type: ${nodeState.type}`);
+                                return false;
+                            }
+
+                            newNode.pos = nodeState.pos;
+                            newNode.size = nodeState.size;
+                            if (nodeState.title) newNode.title = nodeState.title;
+                            if (nodeState.color) newNode.color = nodeState.color;
+                            if (nodeState.bgcolor) newNode.bgcolor = nodeState.bgcolor;
+                            if (nodeState.mode !== undefined) newNode.mode = nodeState.mode;
+                            if (nodeState.flags) Object.assign(newNode.flags, nodeState.flags);
+
+                            if (newNode.widgets && nodeState.widgets_values) {
+                                nodeState.widgets_values.forEach((val, idx) => {
+                                    if (newNode.widgets[idx]) {
+                                        newNode.widgets[idx].value = val;
+                                    }
+                                });
+                            }
+
+                            app.graph.add(newNode);
+
+                            inputLinks.forEach(linkInfo => {
+                                const originNode = app.graph.getNodeById(linkInfo.originNode);
+                                if (originNode && newNode.inputs[linkInfo.targetSlot]) {
+                                    originNode.connect(linkInfo.originSlot, newNode, linkInfo.targetSlot);
+                                }
+                            });
+
+                            outputLinks.forEach(linkInfo => {
+                                const targetNode = app.graph.getNodeById(linkInfo.targetNode);
+                                if (targetNode && newNode.outputs[linkInfo.originSlot]) {
+                                    newNode.connect(linkInfo.originSlot, targetNode, linkInfo.targetSlot);
+                                }
+                            });
+
+                            // Make sure this node isn't in our highlight tracking
+                            this.originalNodeColors.delete(nodeId);
+
+                            app.graph.setDirtyCanvas(true, true);
+                            return true;
+
+                        } catch (error) {
+                            console.error(`Error recreating node ${nodeId}:`, error);
+                            return false;
+                        }
+                    }
 
     // Add these export methods to your class:
     exportPackList() {
@@ -810,9 +1318,9 @@ showWorkflowStats() {
     }
 
     copyNodeTypes(includeUUIDs = false) {
-	    console.log('copyNodeTypes called with includeUUIDs:', includeUUIDs);
-	    console.log('workflowTypeIndex keys:', Object.keys(this.workflowTypeIndex).length);
-	    console.log('Sample types:', Object.keys(this.workflowTypeIndex).slice(0, 5));
+        // console.log('copyNodeTypes called with includeUUIDs:', includeUUIDs);
+        // console.log('workflowTypeIndex keys:', Object.keys(this.workflowTypeIndex).length);
+        // console.log('Sample types:', Object.keys(this.workflowTypeIndex).slice(0, 5));
         let typeEntries = Object.entries(this.workflowTypeIndex)
             .map(([type, nodeIds]) => ({ type, count: nodeIds.length }));
 
@@ -866,79 +1374,82 @@ showWorkflowStats() {
         }
     }
 
-	updateTabAppearance() {
-	    document.querySelectorAll('#af-find-nodes-panel [data-tab]').forEach(btn => {
-	        const tabId = btn.dataset.tab;
-	        const isExperimental = tabId === 'pack' || tabId === 'type';
-	        const isStats = tabId === 'stats';
-	        const isActive = tabId === this.currentTab;
+    updateTabAppearance() {
+        document.querySelectorAll('#af-find-nodes-panel [data-tab]').forEach(btn => {
+            const tabId = btn.dataset.tab;
+            const isExperimental = tabId === 'pack' || tabId === 'type';
+            const isStats = tabId === 'stats' || tabId === 'updates';
+            const isActive = tabId === this.currentTab;
 
-	        btn.style.background = isActive ?
-	            (isExperimental ? '#7a4a1a' : (isStats ? '#2a4a7a' : '#555')) :
-	            (isExperimental ? '#5a2a0a' : (isStats ? '#1a2a5a' : '#333'));
+            btn.style.background = isActive ?
+                (isExperimental ? '#7a4a1a' : (isStats ? '#2a4a7a' : '#555')) :
+                (isExperimental ? '#5a2a0a' : (isStats ? '#1a2a5a' : '#333'));
 
-	        btn.style.borderBottom = isActive ?
-	            (isExperimental ? '2px solid #ff9800' : (isStats ? '2px solid #4da6ff' : '2px solid #4CAF50')) :
-	            'none';
+            btn.style.borderBottom = isActive ?
+                (isExperimental ? '2px solid #ff9800' : (isStats ? '2px solid #4da6ff' : '2px solid #4CAF50')) :
+                'none';
 
-	        btn.style.opacity = isExperimental && !this.experimentalEnabled ? '0.6' : '1';
-	    });
-	}
+            btn.style.opacity = isExperimental && !this.experimentalEnabled ? '0.6' : '1';
+        });
+    }
 
-	AF_Find_Nodes_ShowPanel() {
-	    if (!this.searchPanel) {
-	        this.createSearchPanel();
-	    }
-	    this.searchPanel.style.display = 'block';
-	    this.isVisible = true;
+    AF_Find_Nodes_ShowPanel() {
+        if (!this.searchPanel) {
+            this.createSearchPanel();
+        }
+        this.searchPanel.style.display = 'block';
+        this.isVisible = true;
 
-	    // Scan workflow when panel opens (safe, on-demand scanning)
-	    this.scanWorkflowForPacks();
+        // Scan workflow when panel opens (safe, on-demand scanning)
+        this.scanWorkflowForPacks();
 
-	    // Show quick stats if we have data
-	    if (this.scanCompleted) {
-	        const totalNodes = app.graph?.nodes?.length || 0;
-	        const packCount = Object.keys(this.workflowPackIndex).length;
-	        const typeCount = Object.keys(this.workflowTypeIndex).length;
+        // Show quick stats if we have data
+        if (this.scanCompleted) {
+            const totalNodes = app.graph?.nodes?.length || 0;
+            const packCount = Object.keys(this.workflowPackIndex).length;
+            const typeCount = Object.keys(this.workflowTypeIndex).length;
 
-	        let statsMsg = `Loaded workflow: ${totalNodes} nodes`;
-	        if (packCount > 0) {
-	            statsMsg += `, ${packCount} packs`;
-	        }
-	        if (typeCount > 0) {
-	            statsMsg += `, ${typeCount} types`;
-	        }
+            let statsMsg = `Loaded workflow: ${totalNodes} nodes`;
+            if (packCount > 0) {
+                statsMsg += `, ${packCount} packs`;
+            }
+            if (typeCount > 0) {
+                statsMsg += `, ${typeCount} types`;
+            }
 
-	        this.AF_Find_Nodes_UpdateResults(statsMsg);
-	    } else {
-	        this.AF_Find_Nodes_UpdateResults('Ready to search. Scan your workflow by searching packs/types.');
-	    }
+            this.AF_Find_Nodes_UpdateResults(statsMsg);
+        } else {
+            this.AF_Find_Nodes_UpdateResults('Ready to search. Scan your workflow by searching packs/types.');
+        }
 
-	    // Set to remembered tab instead of always 'id'
-	    this.switchTab(this.currentTab);
+        // Set to remembered tab instead of always 'id'
+        this.switchTab(this.currentTab);
 
-	    // Clear the search field when dialog is shown but keep results
-	    document.getElementById('af-find-nodes-input').value = '';
-	    document.getElementById('af-find-nodes-input').focus();
+        // Clear the search field when dialog is shown but keep results
+        document.getElementById('af-find-nodes-input').value = '';
+        document.getElementById('af-find-nodes-input').focus();
 
-	    // Update tab appearance to reflect experimental setting
-	    this.updateTabAppearance();
+        // Update tab appearance to reflect experimental setting
+        this.updateTabAppearance();
 
-	    // Start monitoring when panel is open
-	    this.startWorkflowMonitor();
-	}
+        // Start monitoring when panel is open
+        this.startWorkflowMonitor();
+    }
 
-	AF_Find_Nodes_HidePanel() {
-	    if (this.searchPanel) {
-	        this.searchPanel.style.display = 'none';
-	    }
-	    this.isVisible = false;
-	    this.AF_Find_Nodes_ClearAll();
-	    this.AF_Find_Nodes_SetInspectorMode(false);
+    AF_Find_Nodes_HidePanel() {
+        if (this.searchPanel) {
+            this.searchPanel.style.display = 'none';
+        }
+        this.isVisible = false;
+        this.AF_Find_Nodes_ClearAll();
+        this.AF_Find_Nodes_SetInspectorMode(false);
 
-	    // Stop monitoring when panel is closed
-	    this.stopWorkflowMonitor();
-	}
+        // Clear selection when closing
+        app.canvas.deselectAllNodes();
+
+        // Stop monitoring when panel is closed
+        this.stopWorkflowMonitor();
+    }
 
     AF_Find_Nodes_TogglePanel() {
         if (this.isVisible) {
@@ -948,449 +1459,563 @@ showWorkflowStats() {
         }
     }
 
-	AF_Find_Nodes_Search() {
-		const searchTerm = this.tabInputs.main.value.trim();
-		
-		if (!searchTerm) {
-			this.AF_Find_Nodes_UpdateResults('Please enter a search term', true);
-			return;
-		}
+    AF_Find_Nodes_Search() {
+        const searchTerm = this.tabInputs.main.value.trim();
 
-		let results = [];
-		
-		switch (this.currentTab) {
-			case 'id':
-				results = this.searchById(searchTerm);
-				break;
-			case 'title':
-				results = this.searchByTitle(searchTerm);
-				break;
-			case 'pack':
-				results = this.searchByPack(searchTerm);
-				break;
-			case 'type':
-				results = this.searchByType(searchTerm);
-				break;
-		}
-		
-		this.handleSearchResults(results, searchTerm);
-	}
+        if (!searchTerm) {
+            this.AF_Find_Nodes_UpdateResults('Please enter a search term', true);
+            return;
+        }
 
-	searchById(searchTerm) {
-		const nodeId = parseInt(searchTerm);
-		if (isNaN(nodeId)) {
-			this.AF_Find_Nodes_UpdateResults('Invalid node ID. Please enter a number.', true);
-			return [];
-		}
-		
-		const node = this.AF_Find_Nodes_FindNodeById(nodeId);
-		return node ? [node] : [];
-	}
+        let results = [];
 
-	searchByTitle(searchTerm) {
-		const term = searchTerm.toLowerCase();
-		return app.graph.nodes.filter(node => {
-			return (
-				(node.title && node.title.toLowerCase().includes(term)) ||
-				(node.color && node.color.toLowerCase().includes(term)) ||
-				(node.cnr_id && node.cnr_id.toString().includes(term)) ||
-				(node.aux_id && node.aux_id.toString().includes(term)) ||
-				(node.name && node.name.toLowerCase().includes(term))
-			);
-		});
-	}
+        switch (this.currentTab) {
+            case 'id':
+                results = this.searchById(searchTerm);
+                break;
+            case 'title':
+                results = this.searchByTitle(searchTerm);
+                break;
+            case 'pack':
+                results = this.searchByPack(searchTerm);
+                break;
+            case 'type':
+                results = this.searchByType(searchTerm);
+                break;
+        }
 
-	getNodeBadgeInfo(node) {
-	    if (!node) return null;
+        this.handleSearchResults(results, searchTerm);
+    }
 
-	    // Check ComfyUI's node registry first - this is where pack info is usually stored
-	    if (app.node_types && node.type) {
-	        const nodeDef = app.node_types[node.type];
-	        if (nodeDef?.category) {
-	            // Check if this is a core ComfyUI node
-	            const category = nodeDef.category;
-	            if (this.isCoreComfyUICategory(category)) {
-	                return 'Core';
-	            }
-	            return category;
-	        }
-	        if (nodeDef?.name) {
-	            return nodeDef.name;
-	        }
-	    }
+    searchById(searchTerm) {
+        const nodeId = parseInt(searchTerm);
+        if (isNaN(nodeId)) {
+            this.AF_Find_Nodes_UpdateResults('Invalid node ID. Please enter a number.', true);
+            return [];
+        }
 
-	    // Check node constructor properties
-	    if (node.constructor?.nodeData?.category) {
-	        const category = node.constructor.nodeData.category;
-	        if (this.isCoreComfyUICategory(category)) {
-	            return 'Core';
-	        }
-	        return category;
-	    }
-	    if (node.constructor?.category) {
-	        const category = node.constructor.category;
-	        if (this.isCoreComfyUICategory(category)) {
-	            return 'Core';
-	        }
-	        return category;
-	    }
-	    if (node.constructor?.title) {
-	        return node.constructor.title;
-	    }
+        const node = this.AF_Find_Nodes_FindNodeById(nodeId);
+        return node ? [node] : [];
+    }
 
-	    // Check for comfyClass which sometimes contains pack info
-	    if (node.comfyClass) {
-	        return node.comfyClass;
-	    }
+    searchByTitle(searchTerm) {
+        const term = searchTerm.toLowerCase();
+        return app.graph.nodes.filter(node => {
+            return (
+                (node.title && node.title.toLowerCase().includes(term)) ||
+                (node.color && node.color.toLowerCase().includes(term)) ||
+                (node.cnr_id && node.cnr_id.toString().includes(term)) ||
+                (node.aux_id && node.aux_id.toString().includes(term)) ||
+                (node.name && node.name.toLowerCase().includes(term))
+            );
+        });
+    }
 
-	    // Check cnr_id as a pack identifier
-	    if (node.cnr_id) {
-	        return node.cnr_id.toString();
-	    }
+    getNodeBadgeInfo(node) {
+        if (!node) return null;
 
-	    // For specific known packs, we can also check the type string
-	    const nodeType = node.type || '';
-	    if (nodeType.includes('WAS')) return 'WAS Suite';
-	    if (nodeType.includes('rgthree')) return 'rgthree';
-	    if (nodeType.includes('efficiency')) return 'Efficiency';
-	    if (nodeType.includes('ComfyUI-Impact-Pack')) return 'Impact Pack';
-	    if (nodeType.includes('pysssss')) return 'Custom Scripts';
-	    if (nodeType.includes('easy')) return 'EasyUse';
-	    if (nodeType.includes('Comfyroll')) return 'Comfyroll Studio';
-	    if (nodeType.includes('tinyterra')) return 'TinyTerra';
+        // Check ComfyUI's node registry first - this is where pack info is usually stored
+        if (app.node_types && node.type) {
+            const nodeDef = app.node_types[node.type];
+            if (nodeDef?.category) {
+                // Check if this is a core ComfyUI node
+                const category = nodeDef.category;
+                if (this.isCoreComfyUICategory(category)) {
+                    return 'Core';
+                }
+                return category;
+            }
+            if (nodeDef?.name) {
+                return nodeDef.name;
+            }
+        }
 
-	    // Check if it's a UUID (custom subgraph)
-	    if (this.isUUID(nodeType)) {
-	        return 'Custom Subgraph';
-	    }
+        // Check node constructor properties
+        if (node.constructor?.nodeData?.category) {
+            const category = node.constructor.nodeData.category;
+            if (this.isCoreComfyUICategory(category)) {
+                return 'Core';
+            }
+            return category;
+        }
+        if (node.constructor?.category) {
+            const category = node.constructor.category;
+            if (this.isCoreComfyUICategory(category)) {
+                return 'Core';
+            }
+            return category;
+        }
+        if (node.constructor?.title) {
+            return node.constructor.title;
+        }
 
-	    return null;
-	}
+        // Check for comfyClass which sometimes contains pack info
+        if (node.comfyClass) {
+            return node.comfyClass;
+        }
 
-	// Add this helper method to check if a category is a core ComfyUI category
-	isCoreComfyUICategory(category) {
-	    if (!category) return false;
+        // Check cnr_id as a pack identifier
+        if (node.cnr_id) {
+            return node.cnr_id.toString();
+        }
 
-	    const coreCategories = [
-	        'latent', 'conditioning', 'image', 'sampling', 'loaders', 'utils',
-	        'mask', 'inpaint', 'model_merging', 'advanced/loaders', 'advanced/conditioning',
-	        'latent/advanced', 'image/advanced', 'video', 'essentials'
-	    ];
+        // For specific known packs, we can also check the type string
+        const nodeType = node.type || '';
+        if (nodeType.includes('WAS')) return 'WAS Suite';
+        if (nodeType.includes('rgthree')) return 'rgthree';
+        if (nodeType.includes('efficiency')) return 'Efficiency';
+        if (nodeType.includes('ComfyUI-Impact-Pack')) return 'Impact Pack';
+        if (nodeType.includes('pysssss')) return 'Custom Scripts';
+        if (nodeType.includes('easy')) return 'EasyUse';
+        if (nodeType.includes('Comfyroll')) return 'Comfyroll Studio';
+        if (nodeType.includes('tinyterra')) return 'TinyTerra';
 
-	    const categoryLower = category.toLowerCase();
+        // Check if it's a UUID (custom subgraph)
+        if (this.isUUID(nodeType)) {
+            return 'Custom Subgraph';
+        }
 
-	    // Check exact matches
-	    if (coreCategories.includes(categoryLower)) {
-	        return true;
-	    }
+        return null;
+    }
 
-	    // Check partial matches (for nested categories like "advanced/loaders")
-	    for (const coreCat of coreCategories) {
-	        if (categoryLower.includes(coreCat) || coreCat.includes(categoryLower)) {
-	            return true;
-	        }
-	    }
+    // Add this helper method to check if a category is a core ComfyUI category
+    isCoreComfyUICategory(category) {
+        if (!category) return false;
 
-	    return false;
-	}
+        const coreCategories = [
+            'latent', 'conditioning', 'image', 'sampling', 'loaders', 'utils',
+            'mask', 'inpaint', 'model_merging', 'advanced/loaders', 'advanced/conditioning',
+            'latent/advanced', 'image/advanced', 'video', 'essentials'
+        ];
 
-	// Helper to check if a string is a UUID
-	isUUID(str) {
-	    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-	    return uuidRegex.test(str);
-	}
+        const categoryLower = category.toLowerCase();
 
-	getPackAliases(packName) {
-	    if (!packName) return 'unknown';
+        // Check exact matches
+        if (coreCategories.includes(categoryLower)) {
+            return true;
+        }
 
-	    const lowerPackName = packName.toLowerCase();
+        // Check partial matches (for nested categories like "advanced/loaders")
+        for (const coreCat of coreCategories) {
+            if (categoryLower.includes(coreCat) || coreCat.includes(categoryLower)) {
+                return true;
+            }
+        }
 
-	    // First, check if it's a core ComfyUI category
-	    if (this.isCoreComfyUICategory(lowerPackName)) {
-	        return 'Core';
-	    }
+        return false;
+    }
 
-	    const aliasMap = {
-	        'pysssss': ['custom scripts', 'custom-scripts', 'pysssss'],
-	        'was': ['was suite', 'was', 'wolfang'],
-	        'rgthree': ['rgthree', 'rg3'],
-	        'efficiency': ['efficiency', 'eff'],
-	        'comfyui-manager': ['manager', 'comfyui-manager'],
-	        'easyuse': ['easy use', 'easy-use', 'easyuse', 'easy'],
-	        'controlnet': ['controlnet', 'control net', 'comfyui_controlnet_aux'],
-	        'comfyroll': ['comfyroll studio', 'comfyroll', '🧩 comfyroll studio'],
-	        'tinyterra': ['tinyterra', '🌏 tinyterra'],
-	        'crystools': ['crystools', 'crystools 🪛'],
-	        'impactpack': ['impactpack', 'impact pack', 'comfyui-impact-pack'],
-	        'fen': ["fen's simple nodes", 'fens'],
-	        'wlsh': ['wlsh nodes', 'wlsh'],
-	        'itools': ['itools'],
-	        'ollama': ['ollama'],
-	        'bootleg': ['bootleg'],
-	        'kjnodes': ['kjnodes'],
-	        'marigold': ['marigold'],
-	        'sam': ['segment_anything2', 'segment anything2'],
-	        'depthanything': ['depthanythingv2', 'depthanything']
-	    };
+    // Helper to check if a string is a UUID
+    isUUID(str) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(str);
+    }
 
-	    // First check for exact matches
-	    for (const [canonicalName, aliases] of Object.entries(aliasMap)) {
-	        if (aliases.includes(lowerPackName)) {
-	            return canonicalName;
-	        }
-	    }
+    // ========== VERSION DETECTION METHODS ==========
+    isSemanticVersion(ver) {
+        if (!ver || typeof ver !== 'string') return false;
+        return /^v?\d+(\.\d+){0,2}(\.\d+)*$/.test(ver);
+    }
 
-	    // Then check for partial matches
-	    for (const [canonicalName, aliases] of Object.entries(aliasMap)) {
-	        for (const alias of aliases) {
-	            if (lowerPackName.includes(alias) || alias.includes(lowerPackName)) {
-	                return canonicalName;
-	            }
-	        }
-	    }
+    isGitHash(ver) {
+        if (!ver || typeof ver !== 'string') return false;
+        return /^[0-9a-f]{7,40}$/i.test(ver);
+    }
 
-	    // Check if it's a subgraph/custom node
-	    if (this.isUUID(lowerPackName)) {
-	        return 'Custom Subgraph';
-	    }
+    compareSemanticVersions(v1, v2) {
+        const clean1 = v1.replace(/^v/, '').split('.').map(n => parseInt(n) || 0);
+        const clean2 = v2.replace(/^v/, '').split('.').map(n => parseInt(n) || 0);
 
-	    // Return the original pack name if no aliases found
-	    return packName;
-	}
+        const maxLen = Math.max(clean1.length, clean2.length);
+        for (let i = 0; i < maxLen; i++) {
+            const num1 = clean1[i] || 0;
+            const num2 = clean2[i] || 0;
+            if (num2 > num1) return 1;
+            if (num2 < num1) return -1;
+        }
+        return 0;
+    }
 
-	checkNodeFilePath(node, term) {
-		// Some nodes store file path info that contains pack names
-		if (node.constructor?.nodeData?.filename) {
-			return node.constructor.nodeData.filename.toLowerCase().includes(term);
-		}
-		return false;
-	}
-	
-	searchByPack(searchTerm) {
-	    const term = searchTerm.toLowerCase().trim();
-	    if (!term) {
-	        return [];
-	    }
+    getVersionInfo(node) {
+        const workflowVer = node.properties?.ver || node.ver || 'unknown';
+        let installedVer = 'unknown';
 
-	    // Ensure we have a scanned index
-	    this.scanWorkflowForPacks();
+        try {
+            // Create a temporary fresh instance of the same node type
+            const tempNode = LiteGraph.createNode(node.type);
+            if (tempNode) {
+                // Check the fresh node's version in its properties
+                installedVer = tempNode.properties?.ver ||
+                              tempNode.ver ||
+                              'unknown';
 
-	    // If we have a pre-scanned index, use it for lightning-fast search
-	    if (Object.keys(this.workflowPackIndex).length > 0) {
-	        const results = [];
-	        const normalizedTerm = this.normalizePackName(term);
+                // Important: Don't add it to graph, just check and discard
+                tempNode.graph = null;
+            }
+        } catch (e) {
+            console.warn(`[AF-Updates] Failed to create temp node for ${node.type}:`, e);
+        }
 
-	        // Search through our pack index
-	        Object.entries(this.workflowPackIndex).forEach(([packName, nodeIds]) => {
-	            // Check if pack name matches (case-insensitive, partial match)
-	            const packNameLower = packName.toLowerCase();
+        // Only log when we have both versions and they differ
+        if (workflowVer !== 'unknown' && installedVer !== 'unknown' && workflowVer !== installedVer) {
+            // console.log(`[AF-Updates] MISMATCH: ${node.type}`);
+            // console.log(`  Workflow: ${workflowVer}`);
+            // console.log(`  Installed: ${installedVer}`);
+        }
 
-	            if (packNameLower.includes(normalizedTerm) ||
-	                normalizedTerm.includes(packNameLower) ||
-	                packNameLower === normalizedTerm) {
+        return {
+            workflow: workflowVer,
+            installed: installedVer,
+            category: this.categorizeVersionChange(workflowVer, installedVer),
+            node: node,
+            type: node.type
+        };
+    }
 
-	                // Get all nodes for this pack
-	                nodeIds.forEach(nodeId => {
-	                    const node = this.AF_Find_Nodes_FindNodeById(nodeId);
-	                    if (node) {
-	                        // Add some metadata for display
-	                        node._packSource = packName;
-	                        results.push(node);
-	                    }
-	                });
-	            }
-	        });
+    categorizeVersionChange(oldVer, newVer) {
+        if (oldVer === newVer) return 'same';
+        if (oldVer === 'unknown' || newVer === 'unknown') return 'unknown';
 
-	        if (results.length > 0) {
-	            // Sort by node ID for consistency
-	            results.sort((a, b) => a.id - b.id);
-	            return results;
-	        }
-	    }
+        if (this.isSemanticVersion(oldVer) && this.isSemanticVersion(newVer)) {
+            const comparison = this.compareSemanticVersions(oldVer, newVer);
+            if (comparison > 0) return 'newer';
+            if (comparison < 0) return 'older';
+            return 'same';
+        }
 
-	    // Fallback to original search if index search finds nothing
-	    console.log('AF-Find-Nodes: Using fallback pack search');
-	    return this.originalSearchByPack(searchTerm);
-	}
+        if (this.isGitHash(oldVer) && this.isSemanticVersion(newVer)) {
+            return 'format-changed';
+        }
 
-	// Keep the original search as fallback - add this method AFTER searchByPack:
-	originalSearchByPack(searchTerm) {
-	    const term = searchTerm.toLowerCase().trim();
-	    if (!term) {
-	        return [];
-	    }
+        if (this.isGitHash(oldVer) && this.isGitHash(newVer)) {
+            return 'hash-changed';
+        }
 
-	    if (!app.graph || !app.graph.nodes) {
-	        console.warn("AF_Find_Nodes: No graph or nodes available");
-	        return [];
-	    }
+        return 'unknown';
+    }
 
-	    const normalizedTerm = this.getPackAliases(term);
+    scanForUpdates() {
+        if (!app.graph || !app.graph.nodes) {
+            this.AF_Find_Nodes_UpdateResults('No workflow loaded.', true);
+            return [];
+        }
 
-	    return app.graph.nodes.filter(node => {
-	        const nodeSource = this.getNodeBadgeInfo(node);
-	        const nodeType = (node.type || '').toLowerCase();
-	        const nodeCnrId = (node.cnr_id || '').toString().toLowerCase();
-	        const nodeSourceLower = (nodeSource || '').toLowerCase();
+        const updateableNodes = [];
 
-	        return (nodeSource && nodeSourceLower.includes(normalizedTerm)) ||
-	               nodeType.includes(normalizedTerm) ||
-	               nodeCnrId.includes(normalizedTerm) ||
-	               this.checkNodeFilePath(node, normalizedTerm);
-	    });
-	}
+        app.graph.nodes.forEach(node => {
+            const versionInfo = this.getVersionInfo(node);
 
-	scanWorkflowForPacks() {
-	    if (!app.graph || !app.graph.nodes || app.graph.nodes.length === 0) {
-	        this.workflowPackIndex = {};
-	        this.workflowTypeIndex = {};
-	        this.scanCompleted = false;
-	        return;
-	    }
+            if (versionInfo.category === 'newer' ||
+                versionInfo.category === 'format-changed' ||
+                versionInfo.category === 'hash-changed') {
 
-	    // Create a simple signature to detect if workflow changed
-	    const nodeIds = app.graph.nodes.map(n => n.id).sort();
-	    const signature = nodeIds.join('_') + '_' + app.graph.nodes.length;
+                const packInfo = this.getNodeBadgeInfo(node);
+                updateableNodes.push({
+                    ...versionInfo,
+                    pack: packInfo || 'Unknown',
+                    nodeId: node.id,
+                    title: node.title || 'Untitled'
+                });
+            }
+        });
 
-	    // If signature matches and we already scanned, skip
-	    if (signature === this.lastWorkflowSignature && this.scanCompleted) {
-	        return;
-	    }
+        return updateableNodes;
+    }
 
-	    console.log('AF-Find-Nodes: Scanning workflow for packs/types...');
 
-	    // Reset indices
-	    this.workflowPackIndex = {};
-	    this.workflowTypeIndex = {};
+    getPackAliases(packName) {
+        if (!packName) return 'unknown';
 
-	    let packCount = 0;
-	    let typeCount = 0;
-	    let uuidCount = 0;
+        const lowerPackName = packName.toLowerCase();
 
-	    // Quick scan through all nodes
-	    app.graph.nodes.forEach(node => {
-	        const nodeId = node.id;
-	        const nodeType = node.type || 'Unknown';
+        // First, check if it's a core ComfyUI category
+        if (this.isCoreComfyUICategory(lowerPackName)) {
+            return 'Core';
+        }
 
-	        // Index by type (always available)
-	        if (!this.workflowTypeIndex[nodeType]) {
-	            this.workflowTypeIndex[nodeType] = [];
-	            typeCount++;
-	        }
-	        this.workflowTypeIndex[nodeType].push(nodeId);
+        const aliasMap = {
+            'pysssss': ['custom scripts', 'custom-scripts', 'pysssss'],
+            'was': ['was suite', 'was', 'wolfang'],
+            'rgthree': ['rgthree', 'rg3'],
+            'efficiency': ['efficiency', 'eff'],
+            'comfyui-manager': ['manager', 'comfyui-manager'],
+            'easyuse': ['easy use', 'easy-use', 'easyuse', 'easy'],
+            'controlnet': ['controlnet', 'control net', 'comfyui_controlnet_aux'],
+            'comfyroll': ['comfyroll studio', 'comfyroll', '🧩 comfyroll studio'],
+            'tinyterra': ['tinyterra', '🌏 tinyterra'],
+            'crystools': ['crystools', 'crystools 🪛'],
+            'impactpack': ['impactpack', 'impact pack', 'comfyui-impact-pack'],
+            'fen': ["fen's simple nodes", 'fens'],
+            'wlsh': ['wlsh nodes', 'wlsh'],
+            'itools': ['itools'],
+            'ollama': ['ollama'],
+            'bootleg': ['bootleg'],
+            'kjnodes': ['kjnodes'],
+            'marigold': ['marigold'],
+            'sam': ['segment_anything2', 'segment anything2'],
+            'depthanything': ['depthanythingv2', 'depthanything']
+        };
 
-	        // Index by pack (our main target)
-	        const packInfo = this.getNodeBadgeInfo(node);
-	        if (packInfo) {
-	            // Use your existing alias system to normalize pack names
-	            const normalizedPack = this.getPackAliases(packInfo);
+        // First check for exact matches
+        for (const [canonicalName, aliases] of Object.entries(aliasMap)) {
+            if (aliases.includes(lowerPackName)) {
+                return canonicalName;
+            }
+        }
 
-	            // Track UUIDs separately
-	            if (this.isUUID(normalizedPack)) {
-	                uuidCount++;
-	            }
+        // Then check for partial matches
+        for (const [canonicalName, aliases] of Object.entries(aliasMap)) {
+            for (const alias of aliases) {
+                if (lowerPackName.includes(alias) || alias.includes(lowerPackName)) {
+                    return canonicalName;
+                }
+            }
+        }
 
-	            if (!this.workflowPackIndex[normalizedPack]) {
-	                this.workflowPackIndex[normalizedPack] = [];
-	                packCount++;
-	            }
-	            this.workflowPackIndex[normalizedPack].push(nodeId);
-	        }
-	    });
+        // Check if it's a subgraph/custom node
+        if (this.isUUID(lowerPackName)) {
+            return 'Custom Subgraph';
+        }
 
-	    this.lastWorkflowSignature = signature;
-	    this.scanCompleted = true;
+        // Return the original pack name if no aliases found
+        return packName;
+    }
 
-	    console.log(`AF-Find-Nodes: Indexed ${packCount} packs and ${typeCount} node types`);
-	    if (uuidCount > 0) {
-	        console.log(`AF-Find-Nodes: Found ${uuidCount} UUID-based node types`);
-	    }
-	}
-	
-	// Helper method to get normalized pack name
-	normalizePackName(packName) {
-	    if (!packName) return 'unknown';
-	    return this.getPackAliases(packName.toLowerCase());
-	}
+    checkNodeFilePath(node, term) {
+        // Some nodes store file path info that contains pack names
+        if (node.constructor?.nodeData?.filename) {
+            return node.constructor.nodeData.filename.toLowerCase().includes(term);
+        }
+        return false;
+    }
 
-	handleSearchResults(nodes, searchTerm) {
-		if (nodes.length === 0) {
-			this.showResultsList([], searchTerm);
-			this.AF_Find_Nodes_UpdateResults(`No nodes found for "${searchTerm}"`, true);
-			return;
-		}
-		
-		this.showResultsList(nodes, searchTerm);
-		this.AF_Find_Nodes_AddToHistory(searchTerm);
-		
-		if (nodes.length === 1) {
-			this.selectFromList(nodes[0].id);
-			this.AF_Find_Nodes_UpdateResults(`Found: ${this.getNodeDescription(nodes[0])}`);
-		} else {
-			this.AF_Find_Nodes_UpdateResults(`Found ${nodes.length} nodes. Click any to select.`);
-		}
-	}
+    searchByPack(searchTerm) {
+        const term = searchTerm.toLowerCase().trim();
+        if (!term) {
+            return [];
+        }
 
-	showResultsList(nodes, searchTerm) {
-		let resultsHTML = '';
-		
-		if (nodes.length === 0) {
-			resultsHTML = `<div style="color: #666; font-style: italic;">No nodes found for "${searchTerm}"</div>`;
-		} else {
-			resultsHTML = `<div style="margin-bottom: 8px; color: #aaa; font-size: 11px;">Found ${nodes.length} nodes:</div>`;
-			
-			nodes.forEach((node, index) => {
-				const isHighlighted = this.highlightedNode && this.highlightedNode.id === node.id;
-				const nodeSource = this.getNodeBadgeInfo(node);
-				
-				resultsHTML += `
-					<div class="result-item" 
-						 style="padding: 6px; margin: 2px 0; background: ${isHighlighted ? '#ff960033' : '#2a2a2a'}; border: 1px solid ${isHighlighted ? '#ff9600' : '#444'}; border-radius: 3px; cursor: pointer;"
-						 onclick="window.AF_Find_Nodes_Widget.selectFromList(${node.id})">
-						<div style="font-weight: bold;">[${node.id}] ${node.type || 'Unknown'}</div>
-						<div style="font-size: 10px; color: #ccc;">${node.title || 'Untitled'}</div>
-						${nodeSource ? `<div style="font-size: 9px; color: ${this.currentTab === 'pack' ? '#ff9800' : '#888'};">Pack: ${nodeSource}</div>` : ''}
-					</div>
-				`;
-			});
-		}
-		
-		const results = document.getElementById('af-find-nodes-results');
-		results.innerHTML = resultsHTML;
-	}
-	
-	selectFromList(nodeId) {
-		const node = this.AF_Find_Nodes_FindNodeById(nodeId);
-		if (node) {
-			this.AF_Find_Nodes_HighlightNode(node);
-			this.AF_Find_Nodes_CenterOnNode(node);
-			this.AF_Find_Nodes_UpdateResults(`Selected: ${this.getNodeDescription(node)}`);
-			
-			// Keep the list open, just update the selection highlight
-			const currentSearch = this.tabInputs.main.value.trim();
-			const currentNodes = this.getCurrentSearchResults(currentSearch);
-			this.showResultsList(currentNodes, currentSearch);
-		}
-	}
+        // Ensure we have a scanned index
+        this.scanWorkflowForPacks();
 
-	getCurrentSearchResults(searchTerm) {
-		switch (this.currentTab) {
-			case 'id':
-				return this.searchById(searchTerm);
-			case 'title':
-				return this.searchByTitle(searchTerm);
-			case 'pack':
-				return this.searchByPack(searchTerm);
-			case 'type':
-				return this.searchByType(searchTerm);
-			default:
-				return [];
-		}
-	}
+        // If we have a pre-scanned index, use it for lightning-fast search
+        if (Object.keys(this.workflowPackIndex).length > 0) {
+            const results = [];
+            const normalizedTerm = this.normalizePackName(term);
 
-	getNodeDescription(node) {
-		return `[${node.id}] ${node.type || 'Unknown Type'}: ${node.title || 'Untitled'}`;
-	}
+            // Search through our pack index
+            Object.entries(this.workflowPackIndex).forEach(([packName, nodeIds]) => {
+                // Check if pack name matches (case-insensitive, partial match)
+                const packNameLower = packName.toLowerCase();
+
+                if (packNameLower.includes(normalizedTerm) ||
+                    normalizedTerm.includes(packNameLower) ||
+                    packNameLower === normalizedTerm) {
+
+                    // Get all nodes for this pack
+                    nodeIds.forEach(nodeId => {
+                        const node = this.AF_Find_Nodes_FindNodeById(nodeId);
+                        if (node) {
+                            // Add some metadata for display
+                            node._packSource = packName;
+                            results.push(node);
+                        }
+                    });
+                }
+            });
+
+            if (results.length > 0) {
+                // Sort by node ID for consistency
+                results.sort((a, b) => a.id - b.id);
+                return results;
+            }
+        }
+
+        // Fallback to original search if index search finds nothing
+        // console.log('AF-Find-Nodes: Using fallback pack search');
+        return this.originalSearchByPack(searchTerm);
+    }
+
+    // Keep the original search as fallback - add this method AFTER searchByPack:
+    originalSearchByPack(searchTerm) {
+        const term = searchTerm.toLowerCase().trim();
+        if (!term) {
+            return [];
+        }
+
+        if (!app.graph || !app.graph.nodes) {
+            console.warn("AF_Find_Nodes: No graph or nodes available");
+            return [];
+        }
+
+        const normalizedTerm = this.getPackAliases(term);
+
+        return app.graph.nodes.filter(node => {
+            const nodeSource = this.getNodeBadgeInfo(node);
+            const nodeType = (node.type || '').toLowerCase();
+            const nodeCnrId = (node.cnr_id || '').toString().toLowerCase();
+            const nodeSourceLower = (nodeSource || '').toLowerCase();
+
+            return (nodeSource && nodeSourceLower.includes(normalizedTerm)) ||
+                   nodeType.includes(normalizedTerm) ||
+                   nodeCnrId.includes(normalizedTerm) ||
+                   this.checkNodeFilePath(node, normalizedTerm);
+        });
+    }
+
+    scanWorkflowForPacks() {
+        if (!app.graph || !app.graph.nodes || app.graph.nodes.length === 0) {
+            this.workflowPackIndex = {};
+            this.workflowTypeIndex = {};
+            this.scanCompleted = false;
+            return;
+        }
+
+        // Create a simple signature to detect if workflow changed
+        const nodeIds = app.graph.nodes.map(n => n.id).sort();
+        const signature = nodeIds.join('_') + '_' + app.graph.nodes.length;
+
+        // If signature matches and we already scanned, skip
+        if (signature === this.lastWorkflowSignature && this.scanCompleted) {
+            return;
+        }
+
+        // console.log('AF-Find-Nodes: Scanning workflow for packs/types...');
+
+        // Reset indices
+        this.workflowPackIndex = {};
+        this.workflowTypeIndex = {};
+
+        let packCount = 0;
+        let typeCount = 0;
+        let uuidCount = 0;
+
+        // Quick scan through all nodes
+        app.graph.nodes.forEach(node => {
+            const nodeId = node.id;
+            const nodeType = node.type || 'Unknown';
+
+            // Index by type (always available)
+            if (!this.workflowTypeIndex[nodeType]) {
+                this.workflowTypeIndex[nodeType] = [];
+                typeCount++;
+            }
+            this.workflowTypeIndex[nodeType].push(nodeId);
+
+            // Index by pack (our main target)
+            const packInfo = this.getNodeBadgeInfo(node);
+            if (packInfo) {
+                // Use your existing alias system to normalize pack names
+                const normalizedPack = this.getPackAliases(packInfo);
+
+                // Track UUIDs separately
+                if (this.isUUID(normalizedPack)) {
+                    uuidCount++;
+                }
+
+                if (!this.workflowPackIndex[normalizedPack]) {
+                    this.workflowPackIndex[normalizedPack] = [];
+                    packCount++;
+                }
+                this.workflowPackIndex[normalizedPack].push(nodeId);
+            }
+        });
+
+        this.lastWorkflowSignature = signature;
+        this.scanCompleted = true;
+
+        // console.log(`AF-Find-Nodes: Indexed ${packCount} packs and ${typeCount} node types`);
+        // if (uuidCount > 0) {
+        //     console.log(`AF-Find-Nodes: Found ${uuidCount} UUID-based node types`);
+        // }
+    }
+
+    // Helper method to get normalized pack name
+    normalizePackName(packName) {
+        if (!packName) return 'unknown';
+        return this.getPackAliases(packName.toLowerCase());
+    }
+
+    handleSearchResults(nodes, searchTerm) {
+        if (nodes.length === 0) {
+            this.showResultsList([], searchTerm);
+            this.AF_Find_Nodes_UpdateResults(`No nodes found for "${searchTerm}"`, true);
+            return;
+        }
+
+        this.showResultsList(nodes, searchTerm);
+        this.AF_Find_Nodes_AddToHistory(searchTerm);
+
+        if (nodes.length === 1) {
+            this.selectFromList(nodes[0].id);
+            this.AF_Find_Nodes_UpdateResults(`Found: ${this.getNodeDescription(nodes[0])}`);
+        } else {
+            this.AF_Find_Nodes_UpdateResults(`Found ${nodes.length} nodes. Click any to select.`);
+        }
+    }
+
+    showResultsList(nodes, searchTerm) {
+        let resultsHTML = '';
+
+        if (nodes.length === 0) {
+            resultsHTML = `<div style="color: #666; font-style: italic;">No nodes found for "${searchTerm}"</div>`;
+        } else {
+            resultsHTML = `<div style="margin-bottom: 8px; color: #aaa; font-size: 11px;">Found ${nodes.length} nodes:</div>`;
+
+            nodes.forEach((node, index) => {
+                const nodeSource = this.getNodeBadgeInfo(node);
+
+                resultsHTML += `
+                    <div class="result-item"
+                         style="padding: 6px; margin: 2px 0; background: #2a2a2a; border: 1px solid #444; border-radius: 3px; cursor: pointer;"
+                         onclick="window.AF_Find_Nodes_Widget.selectFromList(${node.id})">
+                        <div style="font-weight: bold;">[${node.id}] ${node.type || 'Unknown'}</div>
+                        <div style="font-size: 10px; color: #ccc;">${node.title || 'Untitled'}</div>
+                        ${nodeSource ? `<div style="font-size: 9px; color: ${this.currentTab === 'pack' ? '#ff9800' : '#888'};">Pack: ${nodeSource}</div>` : ''}
+                    </div>
+                `;
+            });
+        }
+
+        const results = document.getElementById('af-find-nodes-results');
+        results.innerHTML = resultsHTML;
+    }
+
+    selectFromList(nodeId) {
+        const node = this.AF_Find_Nodes_FindNodeById(nodeId);
+        if (node) {
+            // Clear existing selection and select this node
+            app.canvas.deselectAllNodes();
+            node.is_selected = true;
+            app.canvas.selectNode(node);
+            this.AF_Find_Nodes_CenterOnNode(node);
+            this.AF_Find_Nodes_UpdateResults(`Selected: ${this.getNodeDescription(node)}`);
+
+            // Keep the list open, just update the selection highlight
+            const currentSearch = this.tabInputs.main.value.trim();
+            const currentNodes = this.getCurrentSearchResults(currentSearch);
+            this.showResultsList(currentNodes, currentSearch);
+        }
+    }
+
+    getCurrentSearchResults(searchTerm) {
+        switch (this.currentTab) {
+            case 'id':
+                return this.searchById(searchTerm);
+            case 'title':
+                return this.searchByTitle(searchTerm);
+            case 'pack':
+                return this.searchByPack(searchTerm);
+            case 'type':
+                return this.searchByType(searchTerm);
+            default:
+                return [];
+        }
+    }
+
+    getNodeDescription(node) {
+        return `[${node.id}] ${node.type || 'Unknown Type'}: ${node.title || 'Untitled'}`;
+    }
 
     AF_Find_Nodes_FindNodeById(nodeId) {
         if (!app.graph || !app.graph.nodes) return null;
@@ -1399,7 +2024,7 @@ showWorkflowStats() {
 
     AF_Find_Nodes_HighlightNode(node) {
         this.AF_Find_Nodes_ClearHighlight();
-        
+
         // Store original color
         this.originalNodeColors.set(node.id, {
             color: node.color,
@@ -1409,7 +2034,7 @@ showWorkflowStats() {
         // Apply highlight
         node.color = '#ff9600';
         node.bgcolor = '#ff960033';
-        
+
         this.highlightedNode = node;
         app.graph.setDirtyCanvas(true, true);
     }
@@ -1427,54 +2052,59 @@ showWorkflowStats() {
         }
     }
 
-	AF_Find_Nodes_ClearAll() {
-		// Clear the search field
-		const input = document.getElementById('af-find-nodes-input');
-		if (input) {
-			input.value = '';
-		}
-		// Clear highlight
-		this.AF_Find_Nodes_ClearHighlight();
-		// Clear results display but keep the container visible
-		this.showResultsList([], '');
-		this.AF_Find_Nodes_UpdateResults('Search field cleared.');
-	}
+    AF_Find_Nodes_ClearAll() {
+        // Don't do anything if we're in stats or updates tab
+        if (this.currentTab === 'stats' || this.currentTab === 'updates') {
+            return;
+        }
 
-	AF_Find_Nodes_CenterOnNode(node) {
-		if (!app.canvas || !node) return;
-		
-		try {
-			// Clear current selection
-			app.canvas.deselectAllNodes();
-			
-			// Select the target node
-			node.is_selected = true;
-			app.canvas.selectNode(node);
-			
-			// Reset zoom to a reasonable level for viewing
-			const targetScale = 1.0; // or 1.2 for a bit closer
-			app.canvas.ds.scale = targetScale;
-			
-			// Center on the node
-			const canvas = app.canvas;
-			const nodeWidth = node.size[0];
-			const nodeHeight = node.size[1];
-			const nodeCenterX = node.pos[0] + (nodeWidth / 2);
-			const nodeCenterY = node.pos[1] + (nodeHeight / 2);
-			
-			canvas.ds.offset[0] = (canvas.canvas.width / 2) - (nodeCenterX * canvas.ds.scale);
-			canvas.ds.offset[1] = (canvas.canvas.height / 2) - (nodeCenterY * canvas.ds.scale);
-			
-			app.graph.setDirtyCanvas(true, true);
-		} catch (error) {
-			console.warn("AF_Find_Nodes: Could not center on node, using fallback", error);
-			// Simple fallback
-			const canvas = app.canvas;
-			canvas.ds.offset[0] = -node.pos[0] * canvas.ds.scale;
-			canvas.ds.offset[1] = -node.pos[1] * canvas.ds.scale;
-			canvas.setDirty(true, true);
-		}
-	}
+        // Clear the search field
+        const input = document.getElementById('af-find-nodes-input');
+        if (input) {
+            input.value = '';
+        }
+        // Clear highlight
+        this.AF_Find_Nodes_ClearHighlight();
+        // Clear results display but keep the container visible
+        this.showResultsList([], '');
+        this.AF_Find_Nodes_UpdateResults('Search field cleared.');
+    }
+
+    AF_Find_Nodes_CenterOnNode(node) {
+        if (!app.canvas || !node) return;
+
+        try {
+            // Clear current selection
+            app.canvas.deselectAllNodes();
+
+            // Select the target node
+            node.is_selected = true;
+            app.canvas.selectNode(node);
+
+            // Reset zoom to a reasonable level for viewing
+            const targetScale = 1.0; // or 1.2 for a bit closer
+            app.canvas.ds.scale = targetScale;
+
+            // Center on the node
+            const canvas = app.canvas;
+            const nodeWidth = node.size[0];
+            const nodeHeight = node.size[1];
+            const nodeCenterX = node.pos[0] + (nodeWidth / 2);
+            const nodeCenterY = node.pos[1] + (nodeHeight / 2);
+
+            canvas.ds.offset[0] = (canvas.canvas.width / 2) - (nodeCenterX * canvas.ds.scale);
+            canvas.ds.offset[1] = (canvas.canvas.height / 2) - (nodeCenterY * canvas.ds.scale);
+
+            app.graph.setDirtyCanvas(true, true);
+        } catch (error) {
+            console.warn("AF_Find_Nodes: Could not center on node, using fallback", error);
+            // Simple fallback
+            const canvas = app.canvas;
+            canvas.ds.offset[0] = -node.pos[0] * canvas.ds.scale;
+            canvas.ds.offset[1] = -node.pos[1] * canvas.ds.scale;
+            canvas.setDirty(true, true);
+        }
+    }
 
     AF_Find_Nodes_ToggleInspector() {
         this.AF_Find_Nodes_SetInspectorMode(!this.inspectorMode);
@@ -1512,75 +2142,80 @@ showWorkflowStats() {
             if (input) {
                 input.value = node.id.toString();
             }
-            this.AF_Find_Nodes_HighlightNode(node);
+            // Clear existing selection and select this node
+            app.canvas.deselectAllNodes();
+            node.is_selected = true;
+            app.canvas.selectNode(node);
+            this.AF_Find_Nodes_CenterOnNode(node);
+
             this.AF_Find_Nodes_AddToHistory(node.id);
             this.AF_Find_Nodes_UpdateResults(`Selected node ${node.id}: ${node.type || 'Unknown Type'}`);
         }
     }
 
-	AF_Find_Nodes_AddToHistory(searchTerm) {
-		const history = this.tabHistory[this.currentTab];
-		
-		// Remove if already exists
-		this.tabHistory[this.currentTab] = history.filter(item => item !== searchTerm);
-		
-		// Add to front
-		this.tabHistory[this.currentTab].unshift(searchTerm);
-		
-		// Limit size
-		if (this.tabHistory[this.currentTab].length > this.maxHistory) {
-			this.tabHistory[this.currentTab] = this.tabHistory[this.currentTab].slice(0, this.maxHistory);
-		}
-		
-		// Save to localStorage
-		localStorage.setItem(`af-find-node-history-${this.currentTab}`, JSON.stringify(this.tabHistory[this.currentTab]));
-		
-		this.AF_Find_Nodes_UpdateHistory();
-	}
+    AF_Find_Nodes_AddToHistory(searchTerm) {
+        const history = this.tabHistory[this.currentTab];
 
-	AF_Find_Nodes_UpdateHistory() {
-		const historyContainer = document.getElementById('af-find-nodes-history');
-		if (!historyContainer) return;
+        // Remove if already exists
+        this.tabHistory[this.currentTab] = history.filter(item => item !== searchTerm);
 
-		historyContainer.innerHTML = '';
-		
-		const currentHistory = this.tabHistory[this.currentTab];
-		
-		currentHistory.forEach(item => {
-			const historyBtn = document.createElement('button');
-			historyBtn.textContent = item;
-			historyBtn.style.cssText = `
-				background: #444;
-				border: none;
-				color: #fff;
-				padding: 2px 6px;
-				border-radius: 3px;
-				cursor: pointer;
-				font-size: 10px;
-				margin: 1px;
-			`;
-			historyBtn.onclick = () => {
-				this.tabInputs.main.value = item;
-				this.AF_Find_Nodes_Search();
-			};
-			historyContainer.appendChild(historyBtn);
-		});
-		
-		if (currentHistory.length === 0) {
-			const noHistory = document.createElement('div');
-			noHistory.textContent = 'No recent searches';
-			noHistory.style.cssText = 'color: #666; font-size: 10px; font-style: italic;';
-			historyContainer.appendChild(noHistory);
-		}
-	}
-	
-	AF_Find_Nodes_UpdateResults(message, isError = false) {
-		const status = document.getElementById('af-find-nodes-status');
-		if (status) {
-			status.innerHTML = message;
-			status.style.color = isError ? '#ff6b6b' : '#aaa';  /// Red for errors, white otherwise
-		}
-	}
+        // Add to front
+        this.tabHistory[this.currentTab].unshift(searchTerm);
+
+        // Limit size
+        if (this.tabHistory[this.currentTab].length > this.maxHistory) {
+            this.tabHistory[this.currentTab] = this.tabHistory[this.currentTab].slice(0, this.maxHistory);
+        }
+
+        // Save to localStorage
+        localStorage.setItem(`af-find-node-history-${this.currentTab}`, JSON.stringify(this.tabHistory[this.currentTab]));
+
+        this.AF_Find_Nodes_UpdateHistory();
+    }
+
+    AF_Find_Nodes_UpdateHistory() {
+        const historyContainer = document.getElementById('af-find-nodes-history');
+        if (!historyContainer) return;
+
+        historyContainer.innerHTML = '';
+
+        const currentHistory = this.tabHistory[this.currentTab];
+
+        currentHistory.forEach(item => {
+            const historyBtn = document.createElement('button');
+            historyBtn.textContent = item;
+            historyBtn.style.cssText = `
+                background: #444;
+                border: none;
+                color: #fff;
+                padding: 2px 6px;
+                border-radius: 3px;
+                cursor: pointer;
+                font-size: 10px;
+                margin: 1px;
+            `;
+            historyBtn.onclick = () => {
+                this.tabInputs.main.value = item;
+                this.AF_Find_Nodes_Search();
+            };
+            historyContainer.appendChild(historyBtn);
+        });
+
+        if (currentHistory.length === 0) {
+            const noHistory = document.createElement('div');
+            noHistory.textContent = 'No recent searches';
+            noHistory.style.cssText = 'color: #666; font-size: 10px; font-style: italic;';
+            historyContainer.appendChild(noHistory);
+        }
+    }
+
+    AF_Find_Nodes_UpdateResults(message, isError = false) {
+        const status = document.getElementById('af-find-nodes-status');
+        if (status) {
+            status.innerHTML = message;
+            status.style.color = isError ? '#ff6b6b' : '#aaa';  // Red for errors, white otherwise
+        }
+    }
 
     // Keyboard shortcut handler
     AF_Find_Nodes_HandleKeyboard(event) {
