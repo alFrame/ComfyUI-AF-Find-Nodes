@@ -57,7 +57,7 @@ class AF_Find_Nodes_Widget {
         };
 
         // Add workflow change monitoring WITHOUT overriding anything
-        this.workflowMonitorInterval = null;
+        // NOTE: Automatic monitoring disabled - scanning happens on-demand only
         this.lastNodeCount = 0;
         this.selectionInterval = null;
         this.lastSelectedNodes = [];
@@ -98,8 +98,33 @@ class AF_Find_Nodes_Widget {
         }
     }
 
-    // SAFE: Monitor workflow changes without overriding ComfyUI functions
+    // ========== WORKFLOW CHANGE DETECTION (KISS) ==========
+    getCurrentWorkflowSignature() {
+        if (!app.graph?.nodes) return null;
+        const nodeIds = app.graph.nodes.map(n => n.id).sort();
+        return nodeIds.join('_') + '_' + app.graph.nodes.length;
+    }
+
+    isWorkflowChanged() {
+        const currentSig = this.getCurrentWorkflowSignature();
+        return currentSig !== this.lastWorkflowSignature;
+    }
+
+    invalidateScanCache() {
+        this.workflowPackIndex = {};
+        this.workflowTypeIndex = {};
+        this.lastWorkflowSignature = null;
+        this.scanCompleted = false;
+    }
+
+    // DEPRECATED: Automatic workflow monitoring disabled
+    // Scanning now happens on-demand only when tabs are opened
+    // This prevents cross-tab contamination issues
     startWorkflowMonitor() {
+        // No longer starts automatic monitoring
+        return;
+
+        /* DISABLED CODE - kept for reference
         if (this.workflowMonitorInterval) return;
 
         this.workflowMonitorInterval = setInterval(() => {
@@ -116,9 +141,15 @@ class AF_Find_Nodes_Widget {
                 }, 1000);
             }
         }, 2000); // Check every 2 seconds - very conservative
+        */ // END DISABLED CODE
     }
 
+    // DEPRECATED: No longer needed with on-demand scanning
     stopWorkflowMonitor() {
+        // No-op - monitoring is disabled
+        return;
+
+        /* DISABLED CODE
         if (this.workflowMonitorInterval) {
             clearInterval(this.workflowMonitorInterval);
             this.workflowMonitorInterval = null;
@@ -127,6 +158,7 @@ class AF_Find_Nodes_Widget {
             clearTimeout(this.workflowScanTimeout);
             this.workflowScanTimeout = null;
         }
+        */ // END DISABLED CODE
     }
 
     createSearchPanel() {
@@ -568,13 +600,28 @@ class AF_Find_Nodes_Widget {
             this.AF_Find_Nodes_ClearHighlight();
         }
 
+        // Check for workflow changes before showing tab content
+        if (tabId === 'pack' || tabId === 'type' || tabId === 'stats') {
+            if (this.isWorkflowChanged()) {
+                this.invalidateScanCache();
+                console.log('AF-Find-Nodes: Workflow changed - cache invalidated');
+            }
+        }
+
         // Handle tab-specific content
         if (tabId === 'stats') {
             this.showWorkflowStats();
-            this.AF_Find_Nodes_UpdateResults('Workflow statistics loaded.');
         } else if (tabId === 'updates') {
             this.showUpdatesTab();
             this.AF_Find_Nodes_UpdateResults('Ready to scan for node updates.');
+        } else if (tabId === 'pack' || tabId === 'type') {
+            // Show scan prompt if not scanned
+            if (!this.scanCompleted) {
+                this.showScanPrompt(tabId);
+            } else {
+                this.showResultsList([], '');
+                this.AF_Find_Nodes_UpdateResults(`Switched to ${tabConfig.name} search. Ready to search.`);
+            }
         } else {
             this.showResultsList([], '');  // Clear the results list
             this.AF_Find_Nodes_UpdateResults(`Switched to ${tabConfig.name} search. Ready to search.`);
@@ -592,9 +639,100 @@ class AF_Find_Nodes_Widget {
         }
     }
 
+    // Show scan prompt for Pack/Type tabs when workflow not scanned
+    showScanPrompt(tabId) {
+        const results = document.getElementById('af-find-nodes-results');
+        const tabName = tabId === 'pack' ? 'Pack' : 'Type';
+
+        results.innerHTML = `
+            <div style="padding: 20px; text-align: center;">
+                <div style="color: #ff9800; margin-bottom: 15px; font-size: 13px;">
+                    ⚠️ Workflow not scanned
+                </div>
+                <div style="color: #aaa; margin-bottom: 20px; font-size: 11px; line-height: 1.6;">
+                    Click the button below to scan your workflow and index all ${tabName.toLowerCase()}s.
+                    This will enable fast searching.
+                </div>
+                <button onclick="window.AF_Find_Nodes_Widget.performWorkflowScan()"
+                        style="padding: 12px 24px; background: #4CAF50; border: none;
+                               border-radius: 4px; color: white; cursor: pointer; font-size: 12px;
+                               font-weight: bold;">
+                    🔍 Scan Workflow
+                </button>
+            </div>
+        `;
+
+        this.AF_Find_Nodes_UpdateResults(`Click "Scan Workflow" to index your workflow for ${tabName} search.`);
+    }
+
+    // Perform workflow scan (user-triggered)
+    performWorkflowScan() {
+        const results = document.getElementById('af-find-nodes-results');
+        results.innerHTML = '<div style="color: #ff9800; padding: 20px; text-align: center;">⏳ Scanning workflow...</div>';
+
+        // Use setTimeout to show the loading message
+        setTimeout(() => {
+            this.scanWorkflowForPacks();
+
+            if (this.scanCompleted) {
+                const packCount = Object.keys(this.workflowPackIndex).length;
+                const typeCount = Object.keys(this.workflowTypeIndex).length;
+                const totalNodes = app.graph?.nodes?.length || 0;
+
+                results.innerHTML = `
+                    <div style="padding: 20px; text-align: center;">
+                        <div style="color: #4CAF50; margin-bottom: 15px; font-size: 13px;">
+                            ✅ Scan Complete!
+                        </div>
+                        <div style="color: #aaa; font-size: 11px; line-height: 1.6;">
+                            Indexed ${totalNodes} nodes<br>
+                            Found ${packCount} packs and ${typeCount} node types<br><br>
+                            You can now search by pack or type.
+                        </div>
+                        <button onclick="window.AF_Find_Nodes_Widget.performWorkflowScan()"
+                                style="margin-top: 15px; padding: 8px 16px; background: #555; border: none;
+                                       border-radius: 4px; color: white; cursor: pointer; font-size: 11px;">
+                            🔄 Re-scan Workflow
+                        </button>
+                    </div>
+                `;
+
+                this.AF_Find_Nodes_UpdateResults(`✅ Indexed ${packCount} packs and ${typeCount} types from ${totalNodes} nodes.`);
+                console.log(`AF-Find-Nodes: Scan complete - ${packCount} packs, ${typeCount} types, ${totalNodes} nodes`);
+            } else {
+                results.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: #ff6b6b;">
+                        ❌ Scan failed - No workflow loaded
+                    </div>
+                `;
+                this.AF_Find_Nodes_UpdateResults('No workflow loaded.', true);
+            }
+        }, 100);
+    }
+
     showWorkflowStats() {
-        // Ensure we have scanned data
-        this.scanWorkflowForPacks();
+        // Check if workflow needs scanning
+        if (!this.scanCompleted) {
+            const results = document.getElementById('af-find-nodes-results');
+            results.innerHTML = `
+                <div style="padding: 20px; text-align: center;">
+                    <div style="color: #ff9800; margin-bottom: 15px; font-size: 13px;">
+                        ⚠️ Workflow not scanned
+                    </div>
+                    <div style="color: #aaa; margin-bottom: 20px; font-size: 11px; line-height: 1.6;">
+                        Click the button below to scan your workflow and generate statistics.
+                    </div>
+                    <button onclick="window.AF_Find_Nodes_Widget.performWorkflowScan()"
+                            style="padding: 12px 24px; background: #4CAF50; border: none;
+                                   border-radius: 4px; color: white; cursor: pointer; font-size: 12px;
+                                   font-weight: bold;">
+                        🔍 Scan Workflow
+                    </button>
+                </div>
+            `;
+            this.AF_Find_Nodes_UpdateResults('Click "Scan Workflow" to generate workflow statistics.');
+            return;
+        }
 
         const totalNodes = app.graph?.nodes?.length || 0;
         const packCount = Object.keys(this.workflowPackIndex).length;
@@ -639,6 +777,15 @@ class AF_Find_Nodes_Widget {
                         <span>Unique Node Types:</span>
                         <span style="color: #ff9800; font-weight: bold;">${typeCount}</span>
                     </div>
+                </div>
+
+                <!-- Re-scan Button -->
+                <div style="margin-bottom: 15px;">
+                    <button onclick="window.AF_Find_Nodes_Widget.performWorkflowScan()"
+                            style="width: 100%; padding: 8px; background: #555; border: none;
+                                   border-radius: 4px; color: white; cursor: pointer; font-size: 11px;">
+                        🔄 Re-scan Workflow
+                    </button>
                 </div>
 
                 <!-- Quick Export Buttons -->
@@ -1400,10 +1547,13 @@ class AF_Find_Nodes_Widget {
         this.searchPanel.style.display = 'block';
         this.isVisible = true;
 
-        // Scan workflow when panel opens (safe, on-demand scanning)
-        this.scanWorkflowForPacks();
+        // Check if workflow changed (no automatic scan)
+        if (this.isWorkflowChanged()) {
+            this.invalidateScanCache();
+            console.log('AF-Find-Nodes: Workflow changed - cache invalidated');
+        }
 
-        // Show quick stats if we have data
+        // Show status based on scan state
         if (this.scanCompleted) {
             const totalNodes = app.graph?.nodes?.length || 0;
             const packCount = Object.keys(this.workflowPackIndex).length;
@@ -1419,7 +1569,7 @@ class AF_Find_Nodes_Widget {
 
             this.AF_Find_Nodes_UpdateResults(statsMsg);
         } else {
-            this.AF_Find_Nodes_UpdateResults('Ready to search. Scan your workflow by searching packs/types.');
+            this.AF_Find_Nodes_UpdateResults('Ready to search. Use Pack/Type/Stats tabs to scan workflow.');
         }
 
         // Set to remembered tab instead of always 'id'
@@ -1432,8 +1582,7 @@ class AF_Find_Nodes_Widget {
         // Update tab appearance to reflect experimental setting
         this.updateTabAppearance();
 
-        // Start monitoring when panel is open
-        this.startWorkflowMonitor();
+        // No automatic monitoring - scanning happens on-demand only
     }
 
     AF_Find_Nodes_HidePanel() {
@@ -1447,8 +1596,7 @@ class AF_Find_Nodes_Widget {
         // Clear selection when closing
         app.canvas.deselectAllNodes();
 
-        // Stop monitoring when panel is closed
-        this.stopWorkflowMonitor();
+        // No monitoring to stop - on-demand scanning only
     }
 
     AF_Find_Nodes_TogglePanel() {
@@ -1880,7 +2028,7 @@ class AF_Find_Nodes_Widget {
             return;
         }
 
-        // console.log('AF-Find-Nodes: Scanning workflow for packs/types...');
+        console.log('AF-Find-Nodes: Scanning workflow for packs/types...');
 
         // Reset indices
         this.workflowPackIndex = {};
@@ -1924,10 +2072,10 @@ class AF_Find_Nodes_Widget {
         this.lastWorkflowSignature = signature;
         this.scanCompleted = true;
 
-        // console.log(`AF-Find-Nodes: Indexed ${packCount} packs and ${typeCount} node types`);
-        // if (uuidCount > 0) {
-        //     console.log(`AF-Find-Nodes: Found ${uuidCount} UUID-based node types`);
-        // }
+        console.log(`AF-Find-Nodes: Indexed ${packCount} packs and ${typeCount} node types`);
+        if (uuidCount > 0) {
+            console.log(`AF-Find-Nodes: Found ${uuidCount} UUID-based node types`);
+        }
     }
 
     // Helper method to get normalized pack name
@@ -2289,16 +2437,12 @@ app.registerExtension({
 
         console.log("AF - Find Nodes extension loaded. Use Ctrl+Shift+F to open search panel.");
 
-        // Start workflow monitoring when extension loads (but only scans when needed)
-        window.AF_Find_Nodes_Widget.startWorkflowMonitor();
+        // Workflow scanning now happens on-demand only (no automatic monitoring)
     },
 
     async destroyed() {
-        // Clean up all intervals and timeouts
+        // Clean up selection interval if it exists
         if (window.AF_Find_Nodes_Widget) {
-            window.AF_Find_Nodes_Widget.stopWorkflowMonitor();
-
-            // Clean up selection interval if it exists
             if (window.AF_Find_Nodes_Widget.selectionInterval) {
                 clearInterval(window.AF_Find_Nodes_Widget.selectionInterval);
                 window.AF_Find_Nodes_Widget.selectionInterval = null;

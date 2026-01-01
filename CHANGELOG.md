@@ -1,5 +1,9 @@
 ## Changelog
 
+### v0.3.1
+- Critical Fix - Replaced automatic workflow scanning with manual on-demand scanning. Fixes race conditions, cross-tab contamination, and workflow tab restoration issues.
+
+
 ### v0.3.0
 - Added a tab to update nodes in the workflow with node versions of already installed node packs and ComfyUI core nodes
 - Changed the display of found node packs under the stats tab. It's now collapsible items list
