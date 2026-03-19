@@ -27,4 +27,4 @@ jobs:
       - name: Publish to ComfyUI Registry
         run: |
           pip install comfy-cli
-          comfy node publish --token ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+          comfy --skip-prompt node publish --token ${{ secrets.REGISTRY_ACCESS_TOKEN }}
