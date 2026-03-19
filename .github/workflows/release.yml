@@ -25,6 +25,12 @@ jobs:
           generate_release_notes: true
 
       - name: Publish to ComfyUI Registry
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
         run: |
+          if [ -z "$REGISTRY_TOKEN" ]; then
+            echo "ERROR: REGISTRY_ACCESS_TOKEN secret is empty or not set!"
+            exit 1
+          fi
           pip install comfy-cli
-          printf 'n\n' | comfy node publish --token ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+          yes n | comfy node publish --token "$REGISTRY_TOKEN"
