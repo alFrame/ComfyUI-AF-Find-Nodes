@@ -67,6 +67,9 @@ class AF_Find_Nodes_Widget {
         this.autoBackupEnabled = localStorage.getItem('af-find-node-auto-backup') !== 'false';
         this.collapsedPacks = new Set();
         this.collapsedStatsPacks = new Set(); // Track collapsed packs in Stats tab
+
+        // Keyboard shortcut - read from ComfyUI settings, fallback to default
+        this.keyboardShortcut = app.extensionManager?.setting.get("AF.FindNodes.keyboardShortcut") ?? "Ctrl+Shift+F";
     }
 
 
@@ -2367,10 +2370,22 @@ class AF_Find_Nodes_Widget {
 
     // Keyboard shortcut handler
     AF_Find_Nodes_HandleKeyboard(event) {
-        // Ctrl+Shift+F to toggle search panel
-        if (event.ctrlKey && event.shiftKey && event.code === 'KeyF') {
-            event.preventDefault();
-            this.AF_Find_Nodes_TogglePanel();
+        // Dynamic shortcut from ComfyUI settings
+        const shortcut = this.keyboardShortcut;
+        if (shortcut && shortcut !== "Disabled") {
+            const parts = shortcut.split('+').map(p => p.trim());
+            const key = parts[parts.length - 1].toUpperCase();
+            const needsCtrl = parts.some(p => p.toLowerCase() === 'ctrl');
+            const needsAlt = parts.some(p => p.toLowerCase() === 'alt');
+            const needsShift = parts.some(p => p.toLowerCase() === 'shift');
+
+            if (event.key.toUpperCase() === key &&
+                event.ctrlKey === needsCtrl &&
+                event.altKey === needsAlt &&
+                event.shiftKey === needsShift) {
+                event.preventDefault();
+                this.AF_Find_Nodes_TogglePanel();
+            }
         }
         // Escape to close panel
         if (event.code === 'Escape' && this.isVisible) {
@@ -2425,11 +2440,31 @@ window.AF_Find_Nodes_Widget = new AF_Find_Nodes_Widget();
 app.registerExtension({
     name: "AF-Find-Nodes",
 
+    settings: [
+        {
+            id: "AF.FindNodes.keyboardShortcut",
+            name: "Keyboard shortcut to open Find Nodes panel (e.g. Ctrl+Shift+F, Ctrl+G, Disabled)",
+            type: "text",
+            defaultValue: "Ctrl+Shift+F",
+            category: ["AF - Nodes", "AF - Find Nodes", "Shortcuts"],
+            tooltip: "Key combo to toggle the Find Nodes panel. Use modifier+key format. Set to 'Disabled' to turn off.",
+            onChange: (value) => {
+                if (window.AF_Find_Nodes_Widget) {
+                    window.AF_Find_Nodes_Widget.keyboardShortcut = value;
+                }
+            }
+        }
+    ],
+
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         // We don't need to modify node definitions
     },
 
     async setup() {
+        // Read shortcut from ComfyUI settings (may now be available)
+        window.AF_Find_Nodes_Widget.keyboardShortcut =
+            app.extensionManager?.setting.get("AF.FindNodes.keyboardShortcut") ?? "Ctrl+Shift+F";
+
         // Add keyboard event listeners
         document.addEventListener('keydown', (e) => {
             window.AF_Find_Nodes_Widget.AF_Find_Nodes_HandleKeyboard(e);

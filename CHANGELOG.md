@@ -1,5 +1,10 @@
 ## Changelog
 
+### v0.3.2
+- Keyboard shortcut to open the Find Nodes panel is now configurable via ComfyUI Settings → AF - Nodes → AF - Find Nodes → Shortcuts
+- Set to "Disabled" to turn off the shortcut entirely
+- Default remains Ctrl+Shift+F
+
 ### v0.3.1
 - Critical Fix - Replaced automatic workflow scanning with manual on-demand scanning. Fixes race conditions, cross-tab contamination, and workflow tab restoration issues.
 
