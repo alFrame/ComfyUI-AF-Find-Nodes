@@ -141,7 +141,7 @@ The extension now features a tabbed interface with four search modes:
 
 ### Via ComfyUI Manager (Recommended)
 1. Open ComfyUI Manager
-2. Search for "AF - Pack Prompt Nodes"
+2. Search for "AF - Find Nodes"
 3. Install
 
 ### Manual Installation
