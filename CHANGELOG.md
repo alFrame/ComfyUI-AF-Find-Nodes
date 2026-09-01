@@ -1,5 +1,8 @@
 ## Changelog
 
+### v0.3.3
+- Fixed "By ID" search not finding nodes - ComfyUI frontend 1.47+ changed node IDs from numbers to strings, and the lookup used a strict `===` comparison that only ever matched the old number type. Now compares IDs as strings so it works on old and new frontends alike.
+
 ### v0.3.2
 - Keyboard shortcut to open the Find Nodes panel is now configurable via ComfyUI Settings → AF - Nodes → AF - Find Nodes → Shortcuts
 - Set to "Disabled" to turn off the shortcut entirely

@@ -2170,7 +2170,8 @@ class AF_Find_Nodes_Widget {
 
     AF_Find_Nodes_FindNodeById(nodeId) {
         if (!app.graph || !app.graph.nodes) return null;
-        return app.graph.nodes.find(node => node.id === nodeId);
+        // Node ids are strings on frontend 1.47+, numbers on older versions - compare as strings
+        return app.graph.nodes.find(node => String(node.id) === String(nodeId));
     }
 
     AF_Find_Nodes_HighlightNode(node) {
