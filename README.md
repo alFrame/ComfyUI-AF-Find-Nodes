@@ -119,9 +119,11 @@ The extension now features a tabbed interface with four search modes:
 - History persists between sessions
 
 ### ⌨️ **Keyboard Shortcuts**
-- `Ctrl+Shift+F`: Toggle search panel
+- `Ctrl+Shift+F`: Toggle search panel (default - **configurable**, see below)
 - `Escape`: Close search panel
-- `Enter`: Execute search (in ID mode)
+- `Enter`: Execute search
+
+The panel shortcut can be changed (or disabled) in **ComfyUI Settings → AF - Nodes → AF - Find Nodes → Shortcuts**. Enter any modifier+key combo (e.g. `Ctrl+G`), or set it to `Disabled` to turn it off entirely.
 
 ### 🎨 **Visual Highlighting**
 - Found nodes are highlighted in orange
