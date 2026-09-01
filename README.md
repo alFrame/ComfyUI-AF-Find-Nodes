@@ -69,12 +69,11 @@ The extension now features a tabbed interface with four search modes:
 <img width="512" height="387" alt="image" src="./Docs/screenshots/AF-FindNode_UI_By-Type.webp" />
 
 #### 📊 Stats
-- View comprehensive workflow statistics and analytics
-- See top custom packs ranked with medals (🥇🥈🥉)
-- Identify cleanup opportunities (packs with only 1-2 nodes)
-- Visual pack distribution charts
-- Export pack lists and node types for documentation
-- Automatic workflow scanning and indexing
+- Workflow overview: total nodes, unique packs, custom packs, and unique node types
+- Collapsible list of every pack in your workflow, with node count and percentage share
+- Click any node in a pack's list to select and center it
+- Export pack lists or node type lists for documentation
+- Scan is on-demand - click "🔍 Scan Workflow" (or "🔄 Re-scan Workflow") to (re)build the stats after loading or editing a workflow
 
 <img width="512" height="894" alt="image" src="./Docs/screenshots/AF-FindNode_UI_Stats.webp" />
 
@@ -83,10 +82,10 @@ The extension now features a tabbed interface with four search modes:
 - Compare workflow node versions against installed versions
 - Batch update multiple nodes while preserving connections and values
 - Smart categorization of update types:
-  - ✅ **Update available**: Newer version installed
-  - ⚠️ **Workflow newer**: Workflow uses newer version than installed
-  - ⚪ **Unversioned workflow**: Node in workflow has no version info
-  - ❌ **Unversioned installed**: Installed version unknown
+  - ✅ **Update available (semantic version)**: Installed version is a newer semver than the workflow's
+  - ⚠️ **Version format changed**: Workflow tracked a git hash, installed version is now a semver - review recommended
+  - ⚠️ **Git hash changed**: Both versions are git hashes and they differ - review recommended
+  - ❓ **Unable to determine**: Can't tell how the versions relate (e.g. missing version info)
 - Collapsible pack organization for easy navigation
 - Click any node to select and center it in your workflow
 - Auto-backup option before applying updates (recommended)
@@ -149,7 +148,7 @@ The panel shortcut can be changed (or disabled) in **ComfyUI Settings → AF - N
 ### Manual Installation
 ```bash
 cd ComfyUI/custom_nodes/
-git clone ttps://github.com/alFrame/ComfyUI-AF-Find-Nodes.git
+git clone https://github.com/alFrame/ComfyUI-AF-Find-Nodes.git
 ```
 
 ---
@@ -186,29 +185,18 @@ git clone ttps://github.com/alFrame/ComfyUI-AF-Find-Nodes.git
 
 ### Viewing Workflow Statistics
 1. Switch to the "📊 Stats" tab
-2. View your **Workflow Overview**:
+2. Click "🔍 Scan Workflow" - stats are built on-demand, not automatically
+3. View your **Workflow Overview**:
    - Total nodes, unique packs, custom packs, and node types
-   - Quick export buttons for documentation
-3. Browse the **All Node Packs** list:
-   - Complete scrollable list of all packs in your workflow
-   - Packs ranked by usage with visual indicators
-   - Color-coded: Core ComfyUI nodes (blue), Low-usage packs (green)
-   - Each pack shows node count and percentage distribution
-4. Review **Cleanup Opportunities** (if applicable):
-   - Automatically identifies packs with only 1-2 nodes
-   - Helps you spot redundant or rarely-used custom nodes
-   - Consider consolidating or removing these for a cleaner workflow
-5. Check the **Pack Distribution** chart:
-   - Visual bar chart showing top 5 packs by usage
-   - Quick visual comparison of pack dominance in your workflow
-6. View **Node Types Overview**:
-   - Total unique node types in workflow
-   - Count of UUID-based custom nodes/subgraphs
-7. Use **Quick Export** buttons (at top of Stats tab):
-   - **📋 Packs**: Copy formatted pack list for README/documentation
-   - **📝 Filtered Types**: Export node types excluding UUIDs
-   - **📄 All Types**: Export complete node type list including UUIDs
-8. Statistics automatically update when you load or switch workflows
+4. Browse the **Node Packs** list:
+   - Collapsible, scrollable list of every pack in your workflow, sorted by usage (custom packs first, Core last)
+   - Each pack shows its node count and percentage of the workflow
+   - Click a pack to expand it and see its individual nodes; click a node to select and center it
+5. Use the **Quick Export** buttons:
+   - **📋 Packs**: Copy a formatted pack list for README/documentation
+   - **📝 Types**: Copy node types, excluding UUID-named subgraph nodes
+   - **📝 All**: Copy the complete node type list, including UUID-named subgraph nodes
+6. If you've edited the workflow since scanning, click "🔄 Re-scan Workflow" to refresh the stats
 
 ## General Usage Tips
 
@@ -256,7 +244,7 @@ This extension does not currently support searching within subgraphs or nested w
 - Compatible with custom nodes
 - No dependencies on other extensions
 - Pure JavaScript implementation
-- Tested with ComfyUI v0.0.04+
+- Actively maintained against current ComfyUI and frontend releases
 
 ---
 
