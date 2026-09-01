@@ -8,7 +8,7 @@
 //
 // Issues, praise, comment, bugs, improvements: https://github.com/alFrame/ComfyUI-AF-Find-Nodes/issues
 //
-// LICENSE: MIT License
+// LICENSE: GNU General Public License v3.0 (GPL-3.0-or-later)
 //
 // Usage: https://github.com/alFrame/ComfyUI-AF-Find-Nodes/blob/main/README.md
 //

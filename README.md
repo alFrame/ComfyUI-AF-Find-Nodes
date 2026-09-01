@@ -266,7 +266,7 @@ Report issues on GitHub - we appreciate your feedback!
 
 - **[Changelog](CHANGELOG.md)** - Version history and updates
 - [GitHub Issues](https://github.com/alFrame/ComfyUI-AF-Find-Nodes/issues) - Report bugs & request features
-- [License](LICENSE) - MIT License details
+- [License](LICENSE) - GNU GPL v3.0 details
 
 ---
 

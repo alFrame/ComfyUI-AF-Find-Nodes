@@ -1,5 +1,9 @@
 ## Changelog
 
+### v0.3.4
+- Fixed `package.json`'s `license` field, which still said "MIT" - the project switched to GPL-3.0 back in v0.3.0, but this file (and a stale header comment in the JS, and a README link) never got updated. Now correctly says GPL-3.0-or-later, matching the LICENSE file.
+- Fixed two typos in this changelog (stray quote in v0.0.05, missing paren in v0.0.7)
+
 ### v0.3.3
 - Fixed "By ID" search not finding nodes - ComfyUI frontend 1.47+ changed node IDs from numbers to strings, and the lookup used a strict `===` comparison that only ever matched the old number type. Now compares IDs as strings so it works on old and new frontends alike.
 
@@ -49,7 +53,7 @@
 
 ### v0.0.7
 - Moved the JS to the web/ directory
-- Added nodes.py (empty basically, but needed for registration and distribution via ComfyUI Manager
+- Added nodes.py (empty basically, but needed for registration and distribution via ComfyUI Manager)
 - Added CHANGELOG.md
 - Added package.json for ComfyUI Manager compliance
 - Added pyproject.toml for registry compliance
@@ -60,7 +64,7 @@
 - Cosmetics, making this a version
 
 ### v0.0.05
-- Renamed the project from "AF - Find Node By ID" to "AF - Find Nodes"",
+- Renamed the project from "AF - Find Node By ID" to "AF - Find Nodes"
 
 ### v0.0.04
 - Added tabbed interface with four search modes
